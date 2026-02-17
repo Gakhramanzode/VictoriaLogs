@@ -163,6 +163,7 @@ func (shard *pipeSetStreamFieldsProcessorShard) setLogStreamFields(ps *pipeSetSt
 	bLen := len(shard.a.b)
 	sort.Sort(st)
 	shard.a.b = st.marshalString(shard.a.b)
+
 	PutStreamTags(st)
 
 	return bytesutil.ToUnsafeString(shard.a.b[bLen:])
