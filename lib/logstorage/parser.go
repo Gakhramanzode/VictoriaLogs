@@ -211,12 +211,7 @@ var mathStopCompoundTokens = []string{
 
 func (lex *lexer) isPrevRawToken(tokens []string) bool {
 	prevTokenLower := strings.ToLower(lex.prevRawToken)
-	for _, token := range tokens {
-		if token == prevTokenLower {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(tokens, prevTokenLower)
 }
 
 func (lex *lexer) checkPrevAdjacentToken(tokens ...string) error {
@@ -240,12 +235,7 @@ func (lex *lexer) isKeywordAny(keywords []string) bool {
 		return false
 	}
 	tokenLower := strings.ToLower(lex.token)
-	for _, kw := range keywords {
-		if kw == tokenLower {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(keywords, tokenLower)
 }
 
 func (lex *lexer) context() string {
