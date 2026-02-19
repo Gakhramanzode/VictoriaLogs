@@ -2360,16 +2360,16 @@ func parseFilterIPv6Range(lex *lexer, fieldName string) (filter, error) {
 }
 
 func tryParseIPv4CIDR(s string) (uint32, uint32, bool) {
-	n := strings.IndexByte(s, '/')
-	if n < 0 {
+	before, after, ok := strings.Cut(s, "/")
+	if !ok {
 		n, ok := tryParseIPv4(s)
 		return n, n, ok
 	}
-	ip, ok := tryParseIPv4(s[:n])
+	ip, ok := tryParseIPv4(before)
 	if !ok {
 		return 0, 0, false
 	}
-	maskBits, ok := tryParseUint64(s[n+1:])
+	maskBits, ok := tryParseUint64(after)
 	if !ok || maskBits > 32 {
 		return 0, 0, false
 	}
@@ -2398,17 +2398,17 @@ func tryParseIPv6(s string) ([16]byte, bool) {
 func tryParseIPv6CIDR(s string) ([16]byte, [16]byte, bool) {
 	var zero [16]byte
 
-	n := strings.IndexByte(s, '/')
-	if n < 0 {
+	before, after, ok := strings.Cut(s, "/")
+	if !ok {
 		ip, ok := tryParseIPv6(s)
 		return ip, ip, ok
 	}
 
-	ip, ok := tryParseIPv6(s[:n])
+	ip, ok := tryParseIPv6(before)
 	if !ok {
 		return zero, zero, false
 	}
-	maskBits, ok := tryParseUint64(s[n+1:])
+	maskBits, ok := tryParseUint64(after)
 	if !ok || maskBits > 128 {
 		return zero, zero, false
 	}
@@ -3592,13 +3592,13 @@ func adjustEndTimestamp(t int64, tStr string) int64 {
 	}
 
 	if len(tStr) <= len("YYYY") || tStr[len("YYYY")] != '-' {
-		n := strings.IndexByte(tStr, '.')
-		if n < 0 || !isAllDigits(tStr[:n]) || !isAllDigits(tStr[n+1:]) {
+		before, after, ok := strings.Cut(tStr, ".")
+		if !ok || !isAllDigits(before) || !isAllDigits(after) {
 			// Unknown tStr format
 			return tEnd.UnixNano()
 		}
 		// Fractional seconds unix timestamp format.
-		switch len(tStr[n+1:]) {
+		switch len(after) {
 		case 3:
 			tEnd = tStart.Add(time.Millisecond)
 		case 6:
