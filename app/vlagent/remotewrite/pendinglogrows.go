@@ -30,8 +30,8 @@ type pendingLogs struct {
 	// The queue to send blocks to.
 	fq *persistentqueue.FastQueue
 
-	// native indicates whether the remote storage supports native protocol.
-	native bool
+	// format is the format of the data to send to the remote storage.
+	format string
 
 	// mu protects wr
 	mu sync.Mutex
@@ -41,10 +41,10 @@ type pendingLogs struct {
 	periodicFlusherWG sync.WaitGroup
 }
 
-func newPendingLogs(fq *persistentqueue.FastQueue, native bool) *pendingLogs {
+func newPendingLogs(fq *persistentqueue.FastQueue, format string) *pendingLogs {
 	pl := &pendingLogs{
 		fq:     fq,
-		native: native,
+		format: format,
 		stopCh: make(chan struct{}),
 	}
 
@@ -63,18 +63,19 @@ func (pl *pendingLogs) addLogRow(r *logstorage.InsertRow) {
 	bb := bbPool.Get()
 	defer bbPool.Put(bb)
 
-	if pl.native {
+	switch pl.format {
+	case "native":
 		bb.B = r.Marshal(bb.B)
-	} else {
+	case "jsonline":
 		bb.B = r.AppendJSON(bb.B)
+		bb.B = append(bb.B, '\n')
+	default:
+		logger.Panicf("BUG: unsupported remote write format: %q", pl.format)
 	}
 
 	pl.mu.Lock()
 	defer pl.mu.Unlock()
 
-	if !pl.native && len(pl.wr.pendingData.B) > 0 {
-		pl.wr.pendingData.B = append(pl.wr.pendingData.B, '\n')
-	}
 	_, _ = pl.wr.pendingData.Write(bb.B)
 	pl.wr.pendingLogRowsCount++
 	if len(pl.wr.pendingData.B) > maxUnpackedBlockSize.IntN() {
@@ -89,7 +90,6 @@ func (pl *pendingLogs) mustFlushLocked() {
 			logger.Fatalf("BUG: TryWriteBlock cannot return false")
 		}
 	})
-	pl.wr.reset()
 }
 
 func (pl *pendingLogs) periodicFlusher() {
@@ -123,7 +123,6 @@ func (pl *pendingLogs) periodicFlusher() {
 // This is needed in order to properly save in-memory data to persistent queue on graceful shutdown.
 func (pl *pendingLogs) mustFlushOnStop() {
 	pl.wr.push(pl.fq.MustWriteBlockIgnoreDisabledPQ)
-	pl.wr.reset()
 }
 
 func (pl *pendingLogs) mustStop() {
@@ -143,15 +142,14 @@ func (wr *writeRequest) push(pushBlock func([]byte)) {
 	b := wr.pendingData.B
 
 	zb := compressBufPool.Get()
-	zb.B = zstd.CompressLevel(zb.B[:0], b, 1)
-	zbLen := len(zb.B)
-	pushBlock(zb.B)
-	compressBufPool.Put(zb)
-	blockSizeBytes.Update(float64(zbLen))
-	blockSizeLogRows.Update(float64(wr.pendingLogRowsCount))
-}
+	defer compressBufPool.Put(zb)
 
-func (wr *writeRequest) reset() {
+	zb.B = zstd.CompressLevel(zb.B[:0], b, 1)
+	pushBlock(zb.B)
+
+	blockSizeBytes.Update(float64(len(zb.B)))
+	blockSizeLogRows.Update(float64(wr.pendingLogRowsCount))
+
 	wr.pendingData.Reset()
 	wr.pendingLogRowsCount = 0
 }

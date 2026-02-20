@@ -22,7 +22,7 @@ aliases:
 - `vlagent` can accept logs from popular log collectors in the same way as VictoriaLogs does. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/).
   It accepts logs over HTTP-based protocols at the TCP port `9429` by default. The port can be changed via `-httpListenAddr` command-line flag.
 - `vlagent` can replicate collected logs among multiple VictoriaLogs instances - see [these docs](https://docs.victoriametrics.com/victorialogs/vlagent/#replication-and-high-availability).
-- `vlagent` can send logs to any destination that supports JSON logs separated by newlines. See [these docs](https://docs.victoriametrics.com/victorialogs/vlagent/#change-the-remote-write-protocol).
+- `vlagent` can send logs to any destination that supports JSON logs separated by newlines. See [these docs](https://docs.victoriametrics.com/victorialogs/vlagent/#remote-write-format).
 - `vlagent` works smoothly in environments with unstable connections to VictoriaLogs instances. If the remote storage is unavailable, the collected logs
   are buffered at the directory specified via `-remoteWrite.tmpDataPath` command-line flag. The buffered logs are sent to remote storage as soon as the connection
   to the remote storage is repaired. The maximum disk usage for the buffer can be limited with `-remoteWrite.maxDiskUsagePerURL` command-line flag.
@@ -193,25 +193,25 @@ You can control which metadata fields are attached to every log entry using the 
 Note that vlagent does not update node or pod labels during runtime. 
 Therefore, if node/pod metadata changes, you must restart vlagent to apply those changes.
 
-## Change the remote write protocol
+## remote write format
 
-By default, `vlagent` sends logs using the `native` protocol, which is supported by all VictoriaLogs components.
+By default, `vlagent` sends logs to the `-remoteWrite.url` with `native` protocol, which is supported by all VictoriaLogs components.
 
-To send logs in `jsonline` format, set `-remoteWrite.protocol=jsonline`.
-This can be useful when sending logs to external systems (for example, Vector, Fluent Bit, ClickHouse) that accept logs 
-over HTTP in `jsonline` format with `zstd` compression.
+It is possible to send logs to the `-remoteWrite.url` in [`jsonline` format](https://docs.victoriametrics.com/victorialogs/data-ingestion/#json-stream-api)
+by setting `-remoteWrite.format=jsonline` for the corresponding `-remoteWrite.url`. This can be useful when sending logs to external systems
+(for example, Vector, Fluent Bit, ClickHouse) that accept logs over HTTP in `jsonline` format with `zstd` compression.
 
-Note that `vlagent` flattens nested JSON objects into top-level fields using dot-separated names, according to the [VictoriaLogs data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
+Note that `vlagent` flattens nested JSON objects using dot-separated names, according to the [VictoriaLogs data model](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model).
 
-To configure a protocol per remote destination, specify multiple `-remoteWrite.url` and `-remoteWrite.protocol` flags.
-Position matches the flags: the first `-remoteWrite.protocol` applies to the first `-remoteWrite.url`, 
-the second applies to the second URL, and so on:
+To configure a format per remote destination, specify multiple `-remoteWrite.url` and `-remoteWrite.format` flags.
+Position matches the flags: the first `-remoteWrite.format` applies to the first `-remoteWrite.url`,
+the second one applies to the second URL, and so on:
 
 ```sh
-./vlagent -remoteWrite.url http://vlinsert:9428/insert/native \
-  -remoteWrite.protocol native \
-  -remoteWrite.url http://vector:8080 \
-  -remoteWrite.protocol jsonline
+./vlagent -remoteWrite.url=http://vlinsert:9428/insert/native \
+  -remoteWrite.format=native \
+  -remoteWrite.url=http://vector:8080 \
+  -remoteWrite.format=jsonline
 ```
 
 ### Sending logs to Fluent Bit
@@ -233,11 +233,8 @@ Then start `vlagent`:
 
 ```sh
 # Fluent Bit requires Content-Type header to be set to application/json
-./vlagent -remoteWrite.url http://vlinsert:9428/insert/native \
-  -remoteWrite.protocol native \
-  -remoteWrite.url http://fluent-bit:8080 \
-  -remoteWrite.protocol jsonline \
-  -remoteWrite.headers 'Content-Type: application/json'
+./vlagent -remoteWrite.url=http://fluent-bit:8080 -remoteWrite.format=jsonline \
+  -remoteWrite.headers='Content-Type: application/json'
 ```
 
 ### Sending logs to Vector
@@ -274,10 +271,7 @@ This starts Vector listening on port `8080` and forwarding logs to the `console`
 Then start `vlagent`:
 
 ```sh
-./vlagent -remoteWrite.url http://vlinsert:9428/insert/native \
-  -remoteWrite.protocol native \
-  -remoteWrite.url http://vector:8080 \
-  -remoteWrite.protocol jsonline
+./vlagent -remoteWrite.url=http://vector:8080 -remoteWrite.format=jsonline
 ```
 
 ### Sending logs to ClickHouse
@@ -292,18 +286,13 @@ Choose the `INSERT ... FORMAT ...` clause based on your table schema:
 * **Table with multiple fields** (each JSON field maps to a ClickHouse column): use the query `INSERT INTO my_schema.my_table FORMAT JSONEachRow`.
   Note that if fields are missing from the JSON, ClickHouse will use default values for those fields.
 
-The following command configures `vlagent` to send logs to VictoriaLogs using the internal `native` protocol, 
-and to ClickHouse table `default.logs` (a single `JSON` column) using the `jsonline` protocol:
+The following command configures `vlagent` to send logs to ClickHouse table `default.logs` (a single `JSON` column) using the `jsonline` protocol:
 
 ```sh
-./vlagent -remoteWrite.url http://vlinsert:9428/insert/native \
-  -remoteWrite.protocol native \
-  -remoteWrite.basicAuth.username secret \
-  -remoteWrite.basicAuth.password secret \
-  -remoteWrite.url "http://clickhouse:8123?query=INSERT%20INTO%20default.logs%20FORMAT%20JSONAsObject" \
-  -remoteWrite.protocol jsonline \
-  -remoteWrite.basicAuth.username secret \
-  -remoteWrite.basicAuth.password secret
+./vlagent -remoteWrite.url="http://clickhouse:8123?query=INSERT%20INTO%20default.logs%20FORMAT%20JSONAsObject" \
+  -remoteWrite.format=jsonline \
+  -remoteWrite.basicAuth.username=secret \
+  -remoteWrite.basicAuth.password=secret
 ```
 
 ## Monitoring
