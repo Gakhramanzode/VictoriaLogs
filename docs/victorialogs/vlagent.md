@@ -174,7 +174,7 @@ Example usage:
 
 ```sh
 ./vlagent -remoteWrite.url=http://victoria-logs:9428/insert/native -kubernetesCollector \
-  -kubernetesCollector.excludeFilter='kubernetes.pod_annotation.logging.vlagent.io/exclude:=true or kubernetes.pod_namespace:in(test, logging)'
+  -kubernetesCollector.excludeFilter='kubernetes.pod_annotations.logging.vlagent.io/exclude:=true or kubernetes.pod_namespace:in(test, logging)'
 ```
 
 This command starts vlagent with a filter that excludes logs from pods labeled with `logging.vlagent.io/exclude: true` 
