@@ -307,12 +307,12 @@ func (lr *LogRows) MustAddInsertRow(r *InsertRow) {
 	tail, err := st.UnmarshalCanonicalInplace(streamTagsCanonical)
 	if err != nil {
 		line := MarshalFieldsToJSON(nil, r.Fields)
-		logger.Warnf("cannot unmarshal streamTagsCanonical: %w; skipping the log entry; log entry: %s", err, line)
+		invalidStreamTagsLogger.Warnf("cannot unmarshal streamTagsCanonical: %w; skipping the log entry; log entry: %s", err, line)
 		return
 	}
 	if len(tail) > 0 {
 		line := MarshalFieldsToJSON(nil, r.Fields)
-		logger.Warnf("unexpected tail left after unmarshaling streamTagsCanonical; len(tail)=%d; streamTags: %s; log entry: %s", len(tail), st, line)
+		invalidStreamTagsLogger.Warnf("unexpected tail left after unmarshaling streamTagsCanonical; len(tail)=%d; streamTags: %s; log entry: %s", len(tail), st, line)
 		return
 	}
 
@@ -329,6 +329,8 @@ func (lr *LogRows) MustAddInsertRow(r *InsertRow) {
 	// Store the row
 	lr.mustAddInternal(sid, r.Timestamp, r.Fields, r.StreamTagsCanonical)
 }
+
+var invalidStreamTagsLogger = logger.WithThrottler("invalid_stream_tags", 5*time.Second)
 
 func (lr *LogRows) mustAdd(tenantID TenantID, timestamp int64, fields []Field) {
 	lr.MustAdd(tenantID, timestamp, fields, -1)
@@ -347,37 +349,6 @@ func (lr *LogRows) mustAdd(tenantID TenantID, timestamp int64, fields []Field) {
 // - if the total length of log entries is too long
 // - if the log entry contains _stream or _stream_id fields (these fields clash with the automatically generated fields by VictoriaLogs)
 func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields []Field, streamFieldsLen int) {
-	// Verify that the log entry doesn't exceed limits.
-	if len(fields) > maxColumnsPerBlock {
-		line := MarshalFieldsToJSON(nil, fields)
-		logger.Warnf("ignoring log entry with too big number of fields %d, since it exceeds the limit %d; "+
-			"see https://docs.victoriametrics.com/victorialogs/faq/#how-many-fields-a-single-log-entry-may-contain ; log entry: %s", len(fields), maxColumnsPerBlock, line)
-		return
-	}
-	for i := range fields {
-		fieldName := fields[i].Name
-		if len(fieldName) > maxFieldNameSize {
-			line := MarshalFieldsToJSON(nil, fields)
-			logger.Warnf("ignoring log entry with too long field name %q, since its length (%d) exceeds the limit %d bytes; "+
-				"see https://docs.victoriametrics.com/victorialogs/faq/#what-is-the-maximum-supported-field-name-length ; log entry: %s",
-				fieldName, len(fieldName), maxFieldNameSize, line)
-			return
-		}
-		if fieldName == "_stream" || fieldName == "_stream_id" {
-			line := MarshalFieldsToJSON(nil, fields)
-			logger.Warnf("ignoring log entry with the field %q, since this field clashes with the automatically generated field by VictoriaLogs; "+
-				"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields; log entry: %s", fieldName, line)
-			return
-		}
-	}
-	rowLen := EstimatedJSONRowLen(fields)
-	if rowLen > maxUncompressedBlockSize {
-		line := MarshalFieldsToJSON(nil, fields)
-		logger.Warnf("ignoring too long log entry with the estimated length of %d bytes, since it exceeds the limit %d bytes; "+
-			"see https://docs.victoriametrics.com/victorialogs/faq/#what-length-a-log-record-is-expected-to-have ; log entry: %s", rowLen, maxUncompressedBlockSize, line)
-		return
-	}
-
 	// Compose StreamTags from fields
 	st := GetStreamTags()
 	if streamFieldsLen >= 0 {
@@ -419,6 +390,36 @@ func (lr *LogRows) MustAdd(tenantID TenantID, timestamp int64, fields []Field, s
 }
 
 func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field, streamTagsCanonical string) {
+	// Verify that the log entry doesn't exceed limits.
+	if len(fields) > maxColumnsPerBlock {
+		line := MarshalFieldsToJSON(nil, fields)
+		tooManyColumnsLogger.Warnf("ignoring log entry with too big number of fields %d, since it exceeds the limit %d; "+
+			"see https://docs.victoriametrics.com/victorialogs/faq/#how-many-fields-a-single-log-entry-may-contain ; log entry: %s", len(fields), maxColumnsPerBlock, line)
+		return
+	}
+	for i := range fields {
+		fieldName := fields[i].Name
+		if len(fieldName) > maxFieldNameSize {
+			line := MarshalFieldsToJSON(nil, fields)
+			tooLongFieldNameLogger.Warnf("ignoring log entry with too long field name %q, since its length (%d) exceeds the limit %d bytes; "+
+				"see https://docs.victoriametrics.com/victorialogs/faq/#what-is-the-maximum-supported-field-name-length ; log entry: %s",
+				fieldName, len(fieldName), maxFieldNameSize, line)
+			return
+		}
+		if fieldName == "_stream" || fieldName == "_stream_id" {
+			line := MarshalFieldsToJSON(nil, fields)
+			unexpectedStreamFieldLogger.Warnf("ignoring log entry with the field %q, since this field clashes with the automatically generated field by VictoriaLogs; "+
+				"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields; log entry: %s", fieldName, line)
+			return
+		}
+	}
+	if rowLen := EstimatedJSONRowLen(fields); rowLen > maxUncompressedBlockSize {
+		line := MarshalFieldsToJSON(nil, fields)
+		tooLongEntryLogger.Warnf("ignoring too long log entry with the estimated length of %d bytes, since it exceeds the limit %d bytes; "+
+			"see https://docs.victoriametrics.com/victorialogs/faq/#what-length-a-log-record-is-expected-to-have ; log entry: %s", rowLen, maxUncompressedBlockSize, line)
+		return
+	}
+
 	stcs := lr.streamTagsCanonicals
 	if len(stcs) > 0 && string(stcs[len(stcs)-1]) == streamTagsCanonical {
 		stcs = append(stcs, stcs[len(stcs)-1])
@@ -448,6 +449,13 @@ func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field
 	row := lr.fieldsBuf[fieldsLen:]
 	lr.rows = append(lr.rows, row)
 }
+
+var (
+	tooManyColumnsLogger        = logger.WithThrottler("too_many_columns", 5*time.Second)
+	tooLongFieldNameLogger      = logger.WithThrottler("too_logn_field_name", 5*time.Second)
+	tooLongEntryLogger          = logger.WithThrottler("too_long_entry", 5*time.Second)
+	unexpectedStreamFieldLogger = logger.WithThrottler("unexpected_stream_field", 5*time.Second)
+)
 
 func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields, decolorizeFields *prefixfilter.Filter, mustCopyFields bool) bool {
 	if len(fields) == 0 {
