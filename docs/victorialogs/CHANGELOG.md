@@ -22,6 +22,8 @@ according to the following docs:
 
 ## tip
 
+* SECURITY: upgrade Go builder from Go1.26.0 to Go1.26.1. See [the list of issues addressed in Go1.26.1](https://github.com/golang/go/issues?q=milestone%3AGo1.26.1%20label%3ACherryPickApproved).
+
 * FEATURE: [Kubernetes Collector](https://docs.victoriametrics.com/victorialogs/vlagent/#collect-kubernetes-pod-logs): add an ability to include Namespace labels and annotations in log entries. This metadata is also available for filtering via [`-kubernetesCollector.excludeFilter`](https://docs.victoriametrics.com/victorialogs/vlagent/#filtering-kubernetes-logs) command-line flag. See [#1158](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1158) and [these docs](https://docs.victoriametrics.com/victorialogs/vlagent/#kubernetes-metadata-configuration) for details.
 * FEATURE: publish [SPDX](https://spdx.dev/) SBOM attestations for container images on `docker.io` and `quay.io`. See [SECURITY.md](https://github.com/VictoriaMetrics/VictoriaLogs/blob/master/SECURITY.md), [#1102](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1102).
 * FEATURE: [`/select/logsql/query` endpoint](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs): support returning query results in CSV format when `format=csv` query arg is passed to this endpoint according to [these docs](https://docs.victoriametrics.com/victorialogs/querying/#querying-logs-in-csv-format). This functionality is going to be used for downloading query results as CSV files in the [built-in web UI for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/querying/#web-ui). See [#1143](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1143).
