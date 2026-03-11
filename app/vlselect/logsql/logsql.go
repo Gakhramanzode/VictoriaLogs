@@ -150,10 +150,6 @@ func ProcessFacetsRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 	}
 	keepConstFields := httputil.GetBool(r, "keep_const_fields")
 
-	// Pipes must be dropped, since it is expected facets are obtained
-	// from the real logs stored in the database.
-	ca.q.DropAllPipes()
-
 	ca.q.AddFacetsPipe(limit, maxValuesPerField, maxValueLen, keepConstFields)
 
 	var mLock sync.Mutex
@@ -1487,6 +1483,15 @@ func parseCommonArgsWithConfig(r *http.Request, skipMaxRangeCheck bool) (*common
 	q, err := parseQueryFromRequest(r, timestamp)
 	if err != nil {
 		return nil, err
+	}
+
+	// Parse ignore_pipes arg
+	ignorePipes := false
+	if err := getBoolFromRequest(&ignorePipes, r, "ignore_pipes"); err != nil {
+		return nil, err
+	}
+	if ignorePipes {
+		q.DropAllPipes()
 	}
 
 	if startOK || endOK {
