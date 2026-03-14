@@ -406,12 +406,6 @@ func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field
 				fieldName, len(fieldName), maxFieldNameSize, line)
 			return
 		}
-		if fieldName == "_stream" || fieldName == "_stream_id" {
-			line := MarshalFieldsToJSON(nil, fields)
-			unexpectedStreamFieldLogger.Warnf("ignoring log entry with the field %q, since this field clashes with the automatically generated field by VictoriaLogs; "+
-				"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields; log entry: %s", fieldName, line)
-			return
-		}
 	}
 	if rowLen := EstimatedJSONRowLen(fields); rowLen > maxUncompressedBlockSize {
 		line := MarshalFieldsToJSON(nil, fields)
@@ -451,10 +445,9 @@ func (lr *LogRows) mustAddInternal(sid streamID, timestamp int64, fields []Field
 }
 
 var (
-	tooManyColumnsLogger        = logger.WithThrottler("too_many_columns", 5*time.Second)
-	tooLongFieldNameLogger      = logger.WithThrottler("too_logn_field_name", 5*time.Second)
-	tooLongEntryLogger          = logger.WithThrottler("too_long_entry", 5*time.Second)
-	unexpectedStreamFieldLogger = logger.WithThrottler("unexpected_stream_field", 5*time.Second)
+	tooManyColumnsLogger   = logger.WithThrottler("too_many_columns", 5*time.Second)
+	tooLongFieldNameLogger = logger.WithThrottler("too_logn_field_name", 5*time.Second)
+	tooLongEntryLogger     = logger.WithThrottler("too_long_entry", 5*time.Second)
 )
 
 func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields, decolorizeFields *prefixfilter.Filter, mustCopyFields bool) bool {
@@ -481,12 +474,18 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields, decolorizeFie
 			// Skip fields without values
 			continue
 		}
-		if f.Name == "_time" {
+		if fieldName == "_time" {
 			// Values for the _time field are stored in lr.timestamps
 			// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/1168
 			line := MarshalFieldsToJSON(nil, fields)
 			unexpectedTimeFieldLogger.Warnf("skipping _time field with the value %q because the timestamp is parsed from another field "+
 				"according to https://docs.victoriametrics.com/victorialogs/data-ingestion/#http-parameters ; log entry: %s", f.Value, line)
+			continue
+		}
+		if fieldName == "_stream" || fieldName == "_stream_id" {
+			line := MarshalFieldsToJSON(nil, fields)
+			unexpectedStreamFieldLogger.Warnf("skipping %q field wtith the value %q since it clashes with the automatically generated field by VictoriaLogs; "+
+				"see https://docs.victoriametrics.com/victorialogs/keyconcepts/#stream-fields; log entry: %s", fieldName, f.Value, line)
 			continue
 		}
 
@@ -533,7 +532,10 @@ func (lr *LogRows) addFieldsInternal(fields []Field, ignoreFields, decolorizeFie
 	return hasMsgField
 }
 
-var unexpectedTimeFieldLogger = logger.WithThrottler("unexpected_time_field", 5*time.Second)
+var (
+	unexpectedTimeFieldLogger   = logger.WithThrottler("unexpected_time_field", 5*time.Second)
+	unexpectedStreamFieldLogger = logger.WithThrottler("unexpected_stream_field", 5*time.Second)
+)
 
 func getCanonicalFieldName(fieldName string) string {
 	if fieldName == "_msg" {
