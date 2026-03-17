@@ -468,7 +468,7 @@ func ProcessFieldValuesRequest(ctx context.Context, w http.ResponseWriter, r *ht
 		return
 	}
 
-	// Parse fieldName query arg
+	// Parse field query arg
 	fieldName := r.FormValue("field")
 	if fieldName == "" {
 		httpserver.Errorf(w, r, "missing 'field' query arg")
@@ -550,12 +550,15 @@ func ProcessStreamFieldValuesRequest(ctx context.Context, w http.ResponseWriter,
 		return
 	}
 
-	// Parse fieldName query arg
+	// Parse field query arg
 	fieldName := r.FormValue("field")
 	if fieldName == "" {
 		httpserver.Errorf(w, r, "missing 'field' query arg")
 		return
 	}
+
+	// Filter is used for filtering the returned field values by the given filter substring
+	filter := r.FormValue("filter")
 
 	// Parse limit query arg
 	limit, err := getPositiveInt(r, "limit")
@@ -569,9 +572,9 @@ func ProcessStreamFieldValuesRequest(ctx context.Context, w http.ResponseWriter,
 
 	// Obtain stream field values for the given query and the given fieldName
 	startTime := time.Now()
-	values, err := vlstorage.GetStreamFieldValues(qctx, fieldName, uint64(limit))
+	values, err := vlstorage.GetStreamFieldValues(qctx, fieldName, filter, uint64(limit))
 	if err != nil {
-		httpserver.Errorf(w, r, "cannot obtain stream field values: %s", err)
+		httpserver.Errorf(w, r, "cannot obtain stream field values for field %q with filter %q: %s", fieldName, filter, err)
 		return
 	}
 

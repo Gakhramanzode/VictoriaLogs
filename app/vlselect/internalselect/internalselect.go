@@ -252,6 +252,7 @@ func processStreamFieldValuesRequest(ctx context.Context, w http.ResponseWriter,
 	}
 
 	fieldName := r.FormValue("field")
+	filter := r.FormValue("filter")
 
 	limit, err := getInt64FromRequest(r, "limit")
 	if err != nil {
@@ -261,7 +262,7 @@ func processStreamFieldValuesRequest(ctx context.Context, w http.ResponseWriter,
 	qctx := cp.NewQueryContext(ctx)
 	defer cp.UpdatePerQueryStatsMetrics()
 
-	fieldValues, err := vlstorage.GetStreamFieldValues(qctx, fieldName, uint64(limit))
+	fieldValues, err := vlstorage.GetStreamFieldValues(qctx, fieldName, filter, uint64(limit))
 	if err != nil {
 		return fmt.Errorf("cannot obtain stream field values: %w", err)
 	}

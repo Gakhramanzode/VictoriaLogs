@@ -173,6 +173,32 @@ func (app *Vlcluster) StreamFieldNames(t *testing.T, query string, opts StreamFi
 	return app.selectNode.cli.PostFormSuccess(t, url, values)
 }
 
+// StreamFieldValues sends HTTP POST request to /select/logsql/stream_field_values endpoint and returns the plain response.
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-stream-field-values
+func (app *Vlcluster) StreamFieldValues(t *testing.T, query string, opts StreamFieldValuesOpts) string {
+	t.Helper()
+
+	values := opts.asURLValues()
+	values.Add("query", query)
+
+	url := fmt.Sprintf("http://%s/select/logsql/stream_field_values", app.selectNode.httpListenAddr)
+	return app.selectNode.cli.PostFormSuccess(t, url, values)
+}
+
+// Streams sends HTTP POST request to /select/logsql/streams endpoint and returns the plain response.
+//
+// See https://docs.victoriametrics.com/victorialogs/querying/#querying-streams
+func (app *Vlcluster) Streams(t *testing.T, query string, opts StreamsOpts) string {
+	t.Helper()
+
+	values := opts.asURLValues()
+	values.Add("query", query)
+
+	url := fmt.Sprintf("http://%s/select/logsql/streams", app.selectNode.httpListenAddr)
+	return app.selectNode.cli.PostFormSuccess(t, url, values)
+}
+
 // String returns the string representation of the app state.
 func (app *Vlcluster) String() string {
 	return "Vlcluster"

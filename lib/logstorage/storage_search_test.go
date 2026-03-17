@@ -581,7 +581,7 @@ func TestStorageRunQuery(t *testing.T) {
 	t.Run("stream_field_values-nolimit", func(t *testing.T) {
 		q := mustParseQuery("*")
 		qctx := newTestQueryContext(allTenantIDs, q)
-		results, err := s.GetStreamFieldValues(qctx, "instance", 0)
+		results, err := s.GetStreamFieldValues(qctx, "instance", "", 0)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
@@ -595,10 +595,25 @@ func TestStorageRunQuery(t *testing.T) {
 			t.Fatalf("unexpected result; got\n%v\nwant\n%v", results, resultsExpected)
 		}
 	})
+	t.Run("stream_field_values-with-filter", func(t *testing.T) {
+		q := mustParseQuery("*")
+		qctx := newTestQueryContext(allTenantIDs, q)
+		results, err := s.GetStreamFieldValues(qctx, "instance", "t-2", 0)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		resultsExpected := []ValueWithHits{
+			{`host-2:234`, 385},
+		}
+		if !reflect.DeepEqual(results, resultsExpected) {
+			t.Fatalf("unexpected result; got\n%v\nwant\n%v", results, resultsExpected)
+		}
+	})
 	t.Run("stream_field_values-limit", func(t *testing.T) {
 		q := mustParseQuery("*")
 		qctx := newTestQueryContext(allTenantIDs, q)
-		values, err := s.GetStreamFieldValues(qctx, "instance", 3)
+		values, err := s.GetStreamFieldValues(qctx, "instance", "", 3)
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}

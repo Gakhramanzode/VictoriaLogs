@@ -612,8 +612,10 @@ func (s *Storage) GetStreamFieldNames(qctx *QueryContext, filter string) ([]Valu
 
 // GetStreamFieldValues returns stream field values for the given fieldName and the given qctx.
 //
+// If the filter is non-empty, then only the field values containing the filter substring are returned.
+//
 // If limit > 0, then up to limit unique values are returned.
-func (s *Storage) GetStreamFieldValues(qctx *QueryContext, fieldName string, limit uint64) ([]ValueWithHits, error) {
+func (s *Storage) GetStreamFieldValues(qctx *QueryContext, fieldName, filter string, limit uint64) ([]ValueWithHits, error) {
 	streams, err := s.GetStreams(qctx, math.MaxUint64)
 	if err != nil {
 		return nil, err
@@ -621,6 +623,10 @@ func (s *Storage) GetStreamFieldValues(qctx *QueryContext, fieldName string, lim
 
 	m := make(map[string]*uint64)
 	forEachStreamField(streams, func(f Field, hits uint64) {
+		if filter != "" && !strings.Contains(f.Value, filter) {
+			return
+		}
+
 		if f.Name != fieldName {
 			return
 		}

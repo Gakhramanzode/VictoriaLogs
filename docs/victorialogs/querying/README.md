@@ -900,6 +900,8 @@ Below is an example JSON output returned from this endpoint:
 The `/select/logsql/stream_field_values` endpoint supports optional `limit=N` query arg, which allows limiting the number of returned values to `N` with the biggest number of hits.
 If the `limit` is exceeded, then a random set of values is returned with zeroed `hits`.
 
+Pass `filter=substring` query arg to `/select/logsql/stream_field_values` in order to return only the field values containing the given `substring`.
+
 Pass `ignore_pipes=1` query arg to `/select/logsql/stream_field_values` in order to ignore pipes from the `query` while obtaining the values to return for the given `field`.
 
 By default the `(AccountID=0, ProjectID=0)` [tenant](https://docs.victoriametrics.com/victorialogs/#multitenancy) is queried.
