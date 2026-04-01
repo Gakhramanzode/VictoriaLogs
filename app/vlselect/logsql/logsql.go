@@ -685,6 +685,10 @@ func ProcessLiveTailRequest(ctx context.Context, w http.ResponseWriter, r *http.
 		httpserver.Errorf(w, r, "%s", err)
 		return
 	}
+	if refreshInterval <= 0 {
+		httpserver.Errorf(w, r, "'refresh_interval' must be bigger than zero")
+		return
+	}
 
 	startOffset, err := parseDuration(r, "start_offset", "5s")
 	if err != nil {
