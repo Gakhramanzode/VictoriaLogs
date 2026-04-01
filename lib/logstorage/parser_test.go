@@ -2205,6 +2205,7 @@ func TestParseQuery_Success(t *testing.T) {
 	// union pipe
 	f(`* | union(foo)`, `* | union (foo)`)
 	f(`* | union(foo | union(bar baz | count() x))`, `* | union (foo | union (bar baz | stats count(*) as x))`)
+	f(`* | union rows({foo=bar baz:"x:y=z,}"})`, `* | union rows({"foo":"bar","baz":"x:y=z,}"})`)
 
 	// unpack_json pipe
 	f(`* | unpack_json`, `* | unpack_json`)
@@ -3029,6 +3030,7 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`foo | union (`)
 	f(`foo | union ( bar`)
 	f(`foo | union (bar | count)`)
+	f(`foo | union rows`)
 
 	// invalid unpack_json pipe
 	f(`foo | unpack_json bar,`)
@@ -4541,9 +4543,10 @@ func TestQueryIsFixedOutputFieldsOrder(t *testing.T) {
 	f("* | sort by (_time)", false)
 	f("* | fields x | union (*)", false)
 	f("* | fields x | union (* | count())", true)
+	f("* | fields x | union rows({'a':'b','c':'d'})", true)
 	f("* | fields x | join by (a) (*)", false)
 	f("* | fields x | join by (a) (* | count())", true)
-	f("* | fields x | join by (a) rows({'a':'b','c':'d'})", false)
+	f("* | fields x | join by (a) rows({'a':'b','c':'d'})", true)
 
 	f("* | fields x, y", true)
 	f("* | fields x, y | sort by (a)", true)

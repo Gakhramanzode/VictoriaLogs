@@ -184,7 +184,7 @@ func (f WriteDataBlockFunc) newBlockResultWriter() writeBlockResultFunc {
 			return
 		}
 		db := dbs.Get(workerID)
-		db.initFromBlockResult(br)
+		db.mustInitFromBlockResult(br)
 		f(workerID, db)
 	}
 }
@@ -201,7 +201,7 @@ func (f writeBlockResultFunc) newDataBlockWriter() WriteDataBlockFunc {
 			return
 		}
 		br := brs.Get(workerID)
-		br.initFromDataBlock(db)
+		br.mustInitFromDataBlock(db)
 		f(workerID, br)
 	}
 }
@@ -216,7 +216,7 @@ func (s *Storage) RunQuery(qctx *QueryContext, writeBlock WriteDataBlockFunc) er
 type runQueryFunc func(qctx *QueryContext, writeBlock writeBlockResultFunc) error
 
 func (s *Storage) runQuery(qctx *QueryContext, writeBlock writeBlockResultFunc) error {
-	qNew, err := initSubqueries(qctx, s.runQuery, true)
+	qNew, err := initSubqueries(qctx, s.runQuery, false)
 	if err != nil {
 		return err
 	}
@@ -792,12 +792,12 @@ func (s *Storage) runValuesWithHitsQuery(qctx *QueryContext) ([]ValueWithHits, e
 	return results, nil
 }
 
-func initSubqueries(qctx *QueryContext, runQuery runQueryFunc, keepInSubquery bool) (*Query, error) {
+func initSubqueries(qctx *QueryContext, runQuery runQueryFunc, eagerExecute bool) (*Query, error) {
 	getFieldValues := func(q *Query, fieldName string) ([]string, error) {
 		qctxLocal := qctx.WithQuery(q)
 		return getFieldValuesGeneric(qctxLocal, runQuery, fieldName)
 	}
-	qNew, err := initFilterInValues(qctx.Query, getFieldValues, keepInSubquery)
+	qNew, err := initFilterInValues(qctx.Query, getFieldValues)
 	if err != nil {
 		return nil, fmt.Errorf("cannot initialize `in` subqueries: %w", err)
 	}
@@ -815,7 +815,10 @@ func initSubqueries(qctx *QueryContext, runQuery runQueryFunc, keepInSubquery bo
 		qctxLocal := qctx.WithContextAndQuery(ctx, q)
 		return runQuery(qctxLocal, writeBlock)
 	}
-	qNew = initUnionQueries(qNew, runUnionQuery)
+	qNew, err = initUnionQueries(qctx, qNew, runUnionQuery, eagerExecute)
+	if err != nil {
+		return nil, fmt.Errorf("cannot initialize 'union' subqueries: %w", err)
+	}
 
 	return initStreamContextPipes(qctx, qNew, runQuery)
 }
@@ -847,17 +850,17 @@ func initStreamContextPipes(qctx *QueryContext, q *Query, runQuery runQueryFunc)
 	return q, nil
 }
 
-func initFilterInValues(q *Query, getFieldValues getFieldValuesFunc, keepSubquery bool) (*Query, error) {
+func initFilterInValues(q *Query, getFieldValues getFieldValuesFunc) (*Query, error) {
 	if !hasFilterInWithQueryForFilter(q.f) && !hasFilterInWithQueryForPipes(q.pipes) {
 		return q, nil
 	}
 
 	var cache inValuesCache
-	fNew, err := initFilterInValuesForFilter(&cache, q.f, getFieldValues, keepSubquery)
+	fNew, err := initFilterInValuesForFilter(&cache, q.f, getFieldValues)
 	if err != nil {
 		return nil, err
 	}
-	pipesNew, err := initFilterInValuesForPipes(&cache, q.pipes, getFieldValues, keepSubquery)
+	pipesNew, err := initFilterInValuesForPipes(&cache, q.pipes, getFieldValues)
 	if err != nil {
 		return nil, err
 	}
@@ -875,15 +878,19 @@ type inValuesCache struct {
 
 type runUnionQueryFunc func(ctx context.Context, q *Query, writeBlock writeBlockResultFunc) error
 
-func initUnionQueries(q *Query, runUnionQuery runUnionQueryFunc) *Query {
+func initUnionQueries(qctx *QueryContext, q *Query, runUnionQuery runUnionQueryFunc, eagerExecute bool) (*Query, error) {
 	if !hasUnionPipes(q.pipes) {
-		return q
+		return q, nil
 	}
 
 	pipesNew := make([]pipe, len(q.pipes))
 	for i, p := range q.pipes {
 		if pu, ok := p.(*pipeUnion); ok {
-			p = pu.initUnionQuery(runUnionQuery)
+			var err error
+			p, err = pu.initUnionQuery(qctx, runUnionQuery, eagerExecute)
+			if err != nil {
+				return nil, err
+			}
 		}
 		pipesNew[i] = p
 	}
@@ -891,7 +898,7 @@ func initUnionQueries(q *Query, runUnionQuery runUnionQueryFunc) *Query {
 	qNew := q.cloneShallow()
 	qNew.pipes = pipesNew
 
-	return qNew
+	return qNew, nil
 }
 
 func hasUnionPipes(pipes []pipe) bool {
@@ -982,12 +989,12 @@ func hasFilterInWithQueryForPipes(pipes []pipe) bool {
 
 type getFieldValuesFunc func(q *Query, fieldName string) ([]string, error)
 
-func (iff *ifFilter) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (*ifFilter, error) {
+func (iff *ifFilter) initFilterInValues(cache *inValuesCache, getFieldValuesFunc getFieldValuesFunc) (*ifFilter, error) {
 	if iff == nil {
 		return nil, nil
 	}
 
-	f, err := initFilterInValuesForFilter(cache, iff.f, getFieldValuesFunc, keepSubquery)
+	f, err := initFilterInValuesForFilter(cache, iff.f, getFieldValuesFunc)
 	if err != nil {
 		return nil, err
 	}
@@ -997,7 +1004,7 @@ func (iff *ifFilter) initFilterInValues(cache *inValuesCache, getFieldValuesFunc
 	return &iffNew, nil
 }
 
-func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) (filter, error) {
+func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesFunc getFieldValuesFunc) (filter, error) {
 	if f == nil {
 		return nil, nil
 	}
@@ -1027,9 +1034,6 @@ func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesF
 			fiNew := &filterIn{
 				fieldName: t.fieldName,
 			}
-			if keepSubquery {
-				fiNew.values.q = t.values.q
-			}
 			fiNew.values.values = values
 			return fiNew, nil
 		case *filterContainsAll:
@@ -1041,9 +1045,6 @@ func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesF
 			fiNew := &filterContainsAll{
 				fieldName: t.fieldName,
 			}
-			if keepSubquery {
-				fiNew.values.q = t.values.q
-			}
 			fiNew.values.values = values
 			return fiNew, nil
 		case *filterContainsAny:
@@ -1054,9 +1055,6 @@ func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesF
 
 			fiNew := &filterContainsAny{
 				fieldName: t.fieldName,
-			}
-			if keepSubquery {
-				fiNew.values.q = t.values.q
 			}
 			fiNew.values.values = values
 			return fiNew, nil
@@ -1077,9 +1075,6 @@ func initFilterInValuesForFilter(cache *inValuesCache, f filter, getFieldValuesF
 
 			fsNew := &filterStreamID{
 				streamIDs: streamIDs,
-			}
-			if keepSubquery {
-				fsNew.q = t.q
 			}
 			return fsNew, nil
 		default:
@@ -1107,10 +1102,10 @@ func getValuesForQuery(q *Query, qFieldName string, cache *inValuesCache, getFie
 	return vs, nil
 }
 
-func initFilterInValuesForPipes(cache *inValuesCache, pipes []pipe, getFieldValuesFunc getFieldValuesFunc, keepSubquery bool) ([]pipe, error) {
+func initFilterInValuesForPipes(cache *inValuesCache, pipes []pipe, getFieldValuesFunc getFieldValuesFunc) ([]pipe, error) {
 	pipesNew := make([]pipe, len(pipes))
 	for i, p := range pipes {
-		pNew, err := p.initFilterInValues(cache, getFieldValuesFunc, keepSubquery)
+		pNew, err := p.initFilterInValues(cache, getFieldValuesFunc)
 		if err != nil {
 			return nil, err
 		}
@@ -1313,7 +1308,7 @@ func (db *DataBlock) UnmarshalInplace(src []byte, valuesBuf []string) ([]byte, [
 	return src, valuesBuf, nil
 }
 
-func (db *DataBlock) initFromBlockResult(br *blockResult) {
+func (db *DataBlock) mustInitFromBlockResult(br *blockResult) {
 	db.Reset()
 
 	cs := br.getColumns()

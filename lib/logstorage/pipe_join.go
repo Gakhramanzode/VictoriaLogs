@@ -27,7 +27,7 @@ type pipeJoin struct {
 	// rows are obtained either by executing q at initJoinMap
 	// or they can be put inline in the join pipe via the following syntax:
 	//
-	//     join by (...) ({row1}, ... {rowN})
+	//     join by (...) rows({row1}, ... {rowN})
 	//
 	rows [][]Field
 
@@ -87,7 +87,7 @@ func (pj *pipeJoin) hasFilterInWithQuery() bool {
 	return false
 }
 
-func (pj *pipeJoin) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc, _ bool) (pipe, error) {
+func (pj *pipeJoin) initFilterInValues(_ *inValuesCache, _ getFieldValuesFunc) (pipe, error) {
 	// Do not init values for in(...) filters at pj.q, since they are initialized separately at initJoinMap.
 	return pj, nil
 }
@@ -99,8 +99,6 @@ func (pj *pipeJoin) visitSubqueries(visitFunc func(q *Query)) {
 }
 
 func (pj *pipeJoin) initJoinMap(getJoinRows getJoinRowsFunc) (pipe, error) {
-	// TODO: properly track memory usage
-
 	rows := pj.rows
 	if rows == nil {
 		var err error
@@ -257,7 +255,7 @@ func parsePipeJoin(lex *lexer) (pipe, error) {
 	if lex.isKeyword("rows") {
 		rows, err = parseRows(lex)
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse JSON-encoded rows inside 'join': %w", err)
+			return nil, fmt.Errorf("cannot parse rows inside 'join': %w", err)
 		}
 	} else {
 		q, err = parseQueryInParens(lex)
@@ -284,6 +282,11 @@ func parsePipeJoin(lex *lexer) (pipe, error) {
 			return nil, fmt.Errorf("cannot read prefix for [%s]: %w", pj, err)
 		}
 		pj.prefix = prefix
+
+		if !pj.isInner && lex.isKeyword("inner") {
+			lex.nextToken()
+			pj.isInner = true
+		}
 	}
 
 	return pj, nil
@@ -342,22 +345,18 @@ func parseRow(lex *lexer) ([]Field, error) {
 	var fields []Field
 
 	for !lex.isKeyword("}") {
-		if !lex.isQuotedToken() {
-			return nil, fmt.Errorf("the JSON-encoded field name must be in quotes; got [%s] instead", lex.token)
-		}
 		name := lex.token
 		lex.nextToken()
 
-		if !lex.isKeyword(":") {
-			return nil, fmt.Errorf("missing ':' after %q in the JSON-encoded row; got [%s] instead", name, lex.token)
+		if !lex.isKeyword(":", "=") {
+			return nil, fmt.Errorf("missing ':' or '=' after %q; got [%s] instead", name, lex.token)
 		}
 		lex.nextToken()
 
-		if !lex.isQuotedToken() {
-			return nil, fmt.Errorf("the JSON-encoded field value must be in quotes; got [%s] instead", lex.token)
+		value, err := lex.nextCompoundToken()
+		if err != nil {
+			return nil, fmt.Errorf("cannot read value after %q: %w", name, err)
 		}
-		value := lex.token
-		lex.nextToken()
 
 		fields = append(fields, Field{
 			Name:  name,
@@ -368,10 +367,9 @@ func parseRow(lex *lexer) ([]Field, error) {
 			break
 		}
 
-		if !lex.isKeyword(",") {
-			return nil, fmt.Errorf("missing ',' after JSON-encoded field %q:%q; got [%s] instead", name, value, lex.token)
+		if lex.isKeyword(",") {
+			lex.nextToken()
 		}
-		lex.nextToken()
 	}
 	lex.nextToken()
 

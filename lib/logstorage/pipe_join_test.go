@@ -46,10 +46,10 @@ func TestParsePipeJoinFailure(t *testing.T) {
 	f(`join by (x) (abc`)
 	f(`join (x) (y) prefix`)
 	f(`join (x) (y) prefix |`)
-	f(`join by (x) (y) prefix x inner`)
+	f(`join by (x) (y) inner prefix x inner`)
 
 	// invalid inline rows
-	f(`join by (x) rows({foo=bar})`)
+	f(`join by (x) rows({foo,bar})`)
 }
 
 func TestPipeJoinUpdateNeededFields(t *testing.T) {
@@ -101,6 +101,7 @@ func TestParseRows_Success(t *testing.T) {
 	f(` rows ( {  } ) `, []string{`{}`})
 	f(`rows({"a":"b"},{"c":"d","qwe":"rty"})`, []string{`{"a":"b"}`, `{"c":"d","qwe":"rty"}`})
 	f(`rows({ "a" : "b" , } { "c" :'d' , 'qwe' : "rty"} ,)`, []string{`{"a":"b"}`, `{"c":"d","qwe":"rty"}`})
+	f(`rows({a="b" "c": -1.24/sd-f}  {})`, []string{`{"a":"b","c":"-1.24/sd-f"}`, `{}`})
 }
 
 func TestParseRows_Failure(t *testing.T) {
@@ -127,15 +128,15 @@ func TestParseRows_Failure(t *testing.T) {
 	f(`rows({"foo"}`)
 	f(`rows({"foo":`)
 	f(`rows({"foo":}`)
-	f(`rows({"foo":bar})`)
+	f(`rows({"foo",bar})`)
 	f(`rows({"foo":"bar",,})`)
 	f(`rows({,})`)
 	f(`rows({"foo":"bar")`)
 	f(`rows({"foo":"bar")`)
 	f(`rows({"foo":[]})`)
-	f(`rows({"foo":1.23})`)
+	f(`rows({"foo":1. 23})`)
 	f(`rows({"foo":{}})`)
-	f(`rows({"foo":null})`)
+	f(`rows({"foo":nu ll})`)
 
 	// non-empty tail
 	f(`rows({}) foo`)

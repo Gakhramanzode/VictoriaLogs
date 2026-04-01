@@ -2573,6 +2573,11 @@ _time:5m | join by (ip) rows(
 
 It adds `host="host-1"` field to logs with the `ip="1.2.3.4"`, while adding `host="host-2"` to logs with the `ip="3.4.5.6"`.
 
+See also:
+
+- [adding static logs](https://docs.victoriametrics.com/victorialogs/logsql/#adding-static-logs)
+
+
 ### json_array_len pipe
 
 `<q> | json_array_len(field) as result_field` calculates the length of JSON array at the given [`field`](https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model)
@@ -3774,6 +3779,24 @@ See also:
 
 - [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe)
 - [subquery filter](https://docs.victoriametrics.com/victorialogs/logsql/#subquery-filter)
+
+#### adding static logs
+
+The [`union` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#union-pipe) supports adding static logs by using the following syntax:
+
+```
+... | union rows({"f1":"v1",..."fN":"vN"})
+```
+
+For example, the following query adds a statically defined log entry `{"foo":"bar"}` to the selected logs for the last 5 minutes:
+
+```logsql
+_time:5m | union rows({"foo":"bar"})
+```
+
+See also:
+
+- [enriching logs with static fields](https://docs.victoriametrics.com/victorialogs/logsql/#enriching-logs-with-static-fields)
 
 ### uniq pipe
 
