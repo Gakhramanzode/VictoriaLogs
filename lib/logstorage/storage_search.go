@@ -241,7 +241,8 @@ func (s *Storage) getSearchOptions(tenantIDs []TenantID, q *Query, hiddenFieldsF
 	})
 
 	minTimestamp, maxTimestamp := q.GetFilterTimeRange()
-	sf, f := getCommonStreamFilter(q.f)
+	ff := q.getFinalFilter()
+	sf, f := getCommonStreamFilter(ff)
 	fieldsFilter := getNeededColumns(q.pipes)
 
 	var hiddenFieldsFilter *prefixfilter.Filter
@@ -851,23 +852,43 @@ func initStreamContextPipes(qctx *QueryContext, q *Query, runQuery runQueryFunc)
 }
 
 func initFilterInValues(q *Query, getFieldValues getFieldValuesFunc) (*Query, error) {
-	if !hasFilterInWithQueryForFilter(q.f) && !hasFilterInWithQueryForPipes(q.pipes) {
+	if !hasFilterInWithQueryForFilter(q.opts.globalFilter) && !hasFilterInWithQueryForFilter(q.f) && !hasFilterInWithQueryForPipes(q.pipes) {
 		return q, nil
 	}
 
 	var cache inValuesCache
-	fNew, err := initFilterInValuesForFilter(&cache, q.f, getFieldValues)
-	if err != nil {
-		return nil, err
+
+	globalFilter := q.opts.globalFilter
+	if hasFilterInWithQueryForFilter(globalFilter) {
+		fNew, err := initFilterInValuesForFilter(&cache, globalFilter, getFieldValues)
+		if err != nil {
+			return nil, err
+		}
+		globalFilter = fNew
 	}
-	pipesNew, err := initFilterInValuesForPipes(&cache, q.pipes, getFieldValues)
-	if err != nil {
-		return nil, err
+
+	f := q.f
+	if hasFilterInWithQueryForFilter(f) {
+		fNew, err := initFilterInValuesForFilter(&cache, q.f, getFieldValues)
+		if err != nil {
+			return nil, err
+		}
+		f = fNew
+	}
+
+	pipes := q.pipes
+	if hasFilterInWithQueryForPipes(pipes) {
+		pipesNew, err := initFilterInValuesForPipes(&cache, pipes, getFieldValues)
+		if err != nil {
+			return nil, err
+		}
+		pipes = pipesNew
 	}
 
 	qNew := q.cloneShallow()
-	qNew.f = fNew
-	qNew.pipes = pipesNew
+	qNew.opts.globalFilter = globalFilter
+	qNew.f = f
+	qNew.pipes = pipes
 
 	return qNew, nil
 }

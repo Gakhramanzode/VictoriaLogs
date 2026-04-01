@@ -1156,6 +1156,7 @@ See also:
 - [`contains_any` filter](https://docs.victoriametrics.com/victorialogs/logsql/#contains_any-filter)
 - [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe)
 - [`union` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#union-pipe)
+- [`global_filter` option](https://docs.victoriametrics.com/victorialogs/logsql/#global_filter-query-option)
 
 ### Case-insensitive filter
 
@@ -2544,6 +2545,9 @@ _time:1d {app="app1"} | stats by (user) count() app1_hits
   ) prefix "app2."
 ```
 
+If the original query and the joined query contain the same filters such as `_time:1d` above,
+then it may be convenient to put common filters into [`global_filter` option](https://docs.victoriametrics.com/victorialogs/logsql/#global_filter-query-option).
+
 **Performance tips**:
 
 - Make sure that the `<query>` in the `join` pipe returns relatively small number of results, since they are kept in RAM during execution of `join` pipe.
@@ -2555,7 +2559,7 @@ See also:
 - [subquery filter](https://docs.victoriametrics.com/victorialogs/logsql/#subquery-filter)
 - [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe)
 - [conditional `stats`](https://docs.victoriametrics.com/victorialogs/logsql/#stats-with-additional-filters)
-- [`filter` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#filter-pipe)
+- [`global_filter` option](https://docs.victoriametrics.com/victorialogs/logsql/#global_filter-query-option)
 
 #### enriching logs with static fields
 
@@ -3775,10 +3779,14 @@ For example, the following query returns logs with `error` [word](https://docs.v
 _time:5m error | union (_time:1h panic)
 ```
 
+If the original query and the `union(...)` query contain the same filters, then it may be convenient to put
+common filters into [`global_filter` option](https://docs.victoriametrics.com/victorialogs/logsql/#global_filter-query-option).
+
 See also:
 
 - [`join` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#join-pipe)
 - [subquery filter](https://docs.victoriametrics.com/victorialogs/logsql/#subquery-filter)
+- [`global_filter` option](https://docs.victoriametrics.com/victorialogs/logsql/#global_filter-query-option)
 
 #### adding static logs
 
@@ -5430,6 +5438,32 @@ over the last hour 7 days ago.
 ```logsql
 options(time_offset=7d) _time:1h error | stats count() as 'errors_7d_ago'
 ```
+
+### `global_filter` query option
+
+Sometimes it is needed to apply the same filters across all the subqueries in the LogsQL query.
+For example, when a graph for the top 3 hosts with the biggest number of 500 errors must be shown,
+then the following query can be used:
+
+```logsql
+_time:5m {app="nginx"} status:=500 host:in(
+    _time:5m {app="nginx"} status:=500 | top 3 (host) | keep host
+) | stats by (host) count()
+```
+
+Note that the `_time:5m {app="nginx"} status:=500` filter is repeated twice in the query.
+Such a common filter can be put into `global_filter` option in order to make the query less verbose:
+
+```logsql
+options(global_filter=(_time:5m {app="nginx"} status:=500))
+host:in(
+    * | top 3 (host) | keep host
+) | stats by (host) count()
+```
+
+See also:
+
+- [extra filters](https://docs.victoriametrics.com/victorialogs/querying/#extra-filters)
 
 ## Troubleshooting
 
