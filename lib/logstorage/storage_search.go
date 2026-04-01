@@ -10,12 +10,14 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/atomicutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/bytesutil"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/cgroup"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/encoding"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/logger"
+	"github.com/VictoriaMetrics/VictoriaMetrics/lib/memory"
 	"github.com/VictoriaMetrics/VictoriaMetrics/lib/slicesutil"
 
 	"github.com/VictoriaMetrics/VictoriaLogs/lib/prefixfilter"
@@ -357,24 +359,45 @@ func (s *Storage) GetFieldNames(qctx *QueryContext, filter string) ([]ValueWithH
 	return s.runValuesWithHitsQuery(qctxNew)
 }
 
-func getJoinRowsGeneric(qctx *QueryContext, runQuery runQueryFunc) ([][]Field, error) {
-	// TODO: track memory usage
+func getRows(qctx *QueryContext, runQuery runQueryFunc) ([][]Field, error) {
+	maxStateSize := int64(float64(memory.Allowed()) * 0.2)
+	var stateSizeBudget atomic.Int64
+	stateSizeBudget.Add(maxStateSize)
 
-	var rows [][]Field
-	var rowsLock sync.Mutex
-	writeBlockResult := func(_ uint, br *blockResult) {
+	type rowsShard struct {
+		rows            [][]Field
+		stateSizeBudget int
+	}
+	var shards atomicutil.Slice[rowsShard]
+
+	writeBlockResult := func(workerID uint, br *blockResult) {
 		if br.rowsLen == 0 {
 			return
+		}
+
+		shard := shards.Get(workerID)
+		if shard.stateSizeBudget <= 0 {
+			// steal some budget for the state size from the global budget.
+			remaining := stateSizeBudget.Add(-stateSizeBudgetChunk)
+			if remaining < 0 {
+				// The state size is too big. Stop processing data in order to avoid OOM crash.
+				return
+			}
+			shard.stateSizeBudget += stateSizeBudgetChunk
 		}
 
 		cs := br.getColumns()
 		columnNames := make([]string, len(cs))
 		for i := range cs {
-			columnNames[i] = strings.Clone(cs[i].name)
+			name := strings.Clone(cs[i].name)
+			shard.stateSizeBudget -= int(unsafe.Sizeof(name)) + len(name)
+			columnNames[i] = name
 		}
 
 		for rowIdx := range br.rowsLen {
 			fields := make([]Field, 0, len(cs))
+			shard.stateSizeBudget -= len(fields) * int(unsafe.Sizeof(fields[0]))
+
 			for j := range cs {
 				name := columnNames[j]
 				v := cs[j].getValueAtRow(br, rowIdx)
@@ -382,20 +405,30 @@ func getJoinRowsGeneric(qctx *QueryContext, runQuery runQueryFunc) ([][]Field, e
 					continue
 				}
 				value := strings.Clone(v)
+				shard.stateSizeBudget -= int(unsafe.Sizeof(value)) + len(value)
+
 				fields = append(fields, Field{
 					Name:  name,
 					Value: value,
 				})
 			}
 
-			rowsLock.Lock()
-			rows = append(rows, fields)
-			rowsLock.Unlock()
+			shard.rows = append(shard.rows, fields)
+			shard.stateSizeBudget -= int(unsafe.Sizeof(fields))
 		}
 	}
 
 	if err := runQuery(qctx, writeBlockResult); err != nil {
 		return nil, err
+	}
+
+	if stateSizeBudget.Load() < 0 {
+		return nil, fmt.Errorf("cannot load rows for [%s] because they occupy more than %dMB of memory", qctx.Query, maxStateSize/(1<<20))
+	}
+
+	var rows [][]Field
+	for _, shard := range shards.All() {
+		rows = append(rows, shard.rows...)
 	}
 
 	return rows, nil
@@ -771,7 +804,7 @@ func initSubqueries(qctx *QueryContext, runQuery runQueryFunc, keepInSubquery bo
 
 	getJoinRows := func(q *Query) ([][]Field, error) {
 		qctxLocal := qctx.WithQuery(q)
-		return getJoinRowsGeneric(qctxLocal, runQuery)
+		return getRows(qctxLocal, runQuery)
 	}
 	qNew, err = initJoinMaps(qNew, getJoinRows)
 	if err != nil {
