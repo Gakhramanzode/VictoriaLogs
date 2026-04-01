@@ -165,8 +165,6 @@ func ProcessFacetsRequest(ctx context.Context, w http.ResponseWriter, r *http.Re
 			logger.Panicf("BUG: expecting 3 columns; got %d columns", len(columns))
 		}
 
-		// Fetch columns by name to avoid relying on column ordering at VictoriaLogs cluster.
-		// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/648
 		fieldNames := columns[0].Values
 		fieldValues := columns[1].Values
 		hits := columns[2].Values
