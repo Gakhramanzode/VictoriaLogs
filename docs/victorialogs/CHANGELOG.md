@@ -51,6 +51,8 @@ according to the following docs:
 * BUGFIX: [Journald data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/journald/): fix `-journald.useRemoteIP` flag not saving the remote IP address in the `remote_ip` field for single-hop reverse proxies, and also fix the tests. Thanks to @NaturalSpottingSmite for [the pull request](https://github.com/VictoriaMetrics/VictoriaLogs/pull/1233).
 * BUGFIX: [live tailing API](https://docs.victoriametrics.com/victorialogs/querying/#live-tailing): validate `refresh_interval` for `/select/logsql/tail` and return `400 Bad Request` on invalid values. Previously, `refresh_interval=0s` or a negative duration could trigger a panic and crash the process. See [#1234](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1243). Thanks to @cuongleqq for the fix.
 * BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): fix UI freeze when selecting a long time range.
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): truncate long active filter badges and show full values in tooltip. See [#369](https://github.com/VictoriaMetrics/VictoriaLogs/issues/369#issuecomment-4080410326)
+* BUGFIX: [web UI](https://docs.victoriametrics.com/victorialogs/querying/#web-ui): show active filters in Stream Fields empty state instead of "No stream fields found".
 
 ## [v1.48.0](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.48.0)
 
