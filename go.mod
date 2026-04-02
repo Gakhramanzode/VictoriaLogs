@@ -2,12 +2,12 @@ module github.com/VictoriaMetrics/VictoriaLogs
 
 go 1.26.1
 
-replace github.com/VictoriaMetrics/VictoriaMetrics => github.com/VictoriaMetrics/VictoriaMetrics v1.136.1-0.20260225205418-cd2026e4308c
+replace github.com/VictoriaMetrics/VictoriaMetrics => github.com/VictoriaMetrics/VictoriaMetrics v1.138.1-0.20260402121830-815cc97952c1
 
 require (
-	github.com/VictoriaMetrics/VictoriaMetrics v1.135.0
+	github.com/VictoriaMetrics/VictoriaMetrics v1.138.0
 	github.com/VictoriaMetrics/easyproto v1.2.0
-	github.com/VictoriaMetrics/metrics v1.41.2
+	github.com/VictoriaMetrics/metrics v1.43.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/ergochat/readline v0.1.3
 	github.com/golang/snappy v1.0.0
