@@ -439,11 +439,6 @@ func parseRetryAfterHeader(retryAfterString string) (retryAfterDuration time.Dur
 		return retryAfterDuration
 	}
 
-	defer func() {
-		v := retryAfterDuration.Seconds()
-		logger.Infof("'Retry-After: %s' parsed into %.2f second(s)", retryAfterString, v)
-	}()
-
 	// Retry-After could be in "Mon, 02 Jan 2006 15:04:05 GMT" format.
 	if parsedTime, err := time.Parse(http.TimeFormat, retryAfterString); err == nil {
 		return time.Duration(time.Until(parsedTime).Seconds()) * time.Second
