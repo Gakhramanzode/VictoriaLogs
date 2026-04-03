@@ -318,7 +318,8 @@ func parseRows(lex *lexer) ([][]Field, error) {
 	}
 	lex.nextToken()
 
-	var rows [][]Field
+	// It is important to do not return nil rows here, since the caller depends on non-nil rows.
+	rows := [][]Field{}
 
 	for !lex.isKeyword(")") {
 		row, err := parseRow(lex)

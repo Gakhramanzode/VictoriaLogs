@@ -611,7 +611,7 @@ func (q *Query) dropPipesUnsafeForHits() {
 	for i, p := range q.pipes {
 		if !isPipeSafeForHits(p) {
 			// Drop the rest of the pipes, including the current pipe,
-			// since it modified or deletes the _time field.
+			// since it modifies or deletes the _time field.
 			q.pipes = q.pipes[:i]
 			return
 		}
@@ -627,6 +627,10 @@ func isPipeSafeForHits(p pipe) bool {
 	case *pipeUnion:
 		// Allow union pipes, but drop pipes unsafe for hits inside them.
 		// See https://github.com/VictoriaMetrics/VictoriaLogs/issues/641
+		if t.q == nil {
+			// the union rows(...) is unsafe to use for hits in general case
+			return false
+		}
 		t.q.dropPipesUnsafeForHits()
 		return true
 	case *pipeJoin:

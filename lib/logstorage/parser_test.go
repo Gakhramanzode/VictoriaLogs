@@ -4341,8 +4341,18 @@ func TestQuery_AddCountByTimePipe(t *testing.T) {
 	f(`foo | union (bar) | stats count()`, nsecsPerMinute, 0, nil, `foo | union (bar) | stats by (_time:1m) count(*) as hits | sort by (_time)`)
 	f(`foo | union (bar | stats count())`, nsecsPerMinute, 0, nil, `foo | union (bar) | stats by (_time:1m) count(*) as hits | sort by (_time)`)
 
+	// union rows(...) isn't allowed.
+	f(`foo | union rows()`, nsecsPerMinute, 0, nil, `foo | stats by (_time:1m) count(*) as hits | sort by (_time)`)
+	f(`foo | union rows({})`, nsecsPerMinute, 0, nil, `foo | stats by (_time:1m) count(*) as hits | sort by (_time)`)
+	f(`foo | union rows({_time=foo,x=bar})`, nsecsPerMinute, 0, nil, `foo | stats by (_time:1m) count(*) as hits | sort by (_time)`)
+
 	// join pipe is allowed
 	f(`foo | join by (x) (y)`, nsecsPerMinute, 0, nil, `foo | join by (x) (y) | stats by (_time:1m) count(*) as hits | sort by (_time)`)
+
+	// join rows(...) is allowed
+	f(`foo | join by (x) rows()`, nsecsPerMinute, 0, nil, `foo | join by (x) rows() | stats by (_time:1m) count(*) as hits | sort by (_time)`)
+	f(`foo | join by (x) rows({})`, nsecsPerMinute, 0, nil, `foo | join by (x) rows({}) | stats by (_time:1m) count(*) as hits | sort by (_time)`)
+	f(`foo | join by (x) rows({x=y})`, nsecsPerMinute, 0, nil, `foo | join by (x) rows({"x":"y"}) | stats by (_time:1m) count(*) as hits | sort by (_time)`)
 
 	// pipes, which change _time field
 	f("* | extract 'abc<de>fg' | filter de:='qwer' | stats count()", nsecsPerMinute, 0, nil, `* | extract "abc<de>fg" | filter de:=qwer | stats by (_time:1m) count(*) as hits | sort by (_time)`)

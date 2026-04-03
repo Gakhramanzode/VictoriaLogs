@@ -22,6 +22,8 @@ according to the following docs:
 
 ## tip
 
+* BUGFIX: [/select/logsql/hits](https://docs.victoriametrics.com/victorialogs/querying/#querying-hits-stats): fix `invalid memory address or nil pointer dereference` panic when the `query` passed to `/select/logsql/hits` contains [`union rows(...)`](https://docs.victoriametrics.com/victorialogs/logsql/#adding-static-logs). The panic has been introduced in [v1.49.0](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.49.0).
+
 ## [v1.49.0](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.49.0)
 
 Released at 2026-04-03

@@ -83,6 +83,9 @@ func TestParseRows_Success(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error in parseRows: %s", err)
 		}
+		if rows == nil {
+			t.Fatalf("rows must be non-nil, even for empty rows()")
+		}
 		if !lex.isEnd() {
 			t.Fatalf("unexpected tail left: [%s]", lex.rawToken+lex.s)
 		}
