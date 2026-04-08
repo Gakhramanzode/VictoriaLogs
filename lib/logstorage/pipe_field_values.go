@@ -77,7 +77,10 @@ func (pf *pipeFieldValues) newPipeProcessor(concurrency int, stopCh <-chan struc
 }
 
 func (pf *pipeFieldValues) getHitsFieldName() string {
-	return getUniqueResultName("hits", []string{pf.field})
+	if pf.field == "hits" {
+		return "hitss"
+	}
+	return "hits"
 }
 
 func parsePipeFieldValues(lex *lexer) (pipe, error) {

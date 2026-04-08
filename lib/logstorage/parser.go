@@ -588,8 +588,7 @@ func (q *Query) AddCountByTimePipe(step, off int64, fields []string) {
 		for _, f := range fields {
 			byFieldsStr += ", " + quoteTokenIfNeeded(f)
 		}
-		hitsFieldName := getUniqueResultName("hits", fields)
-		s := fmt.Sprintf("stats by (%s) count() %s", byFieldsStr, quoteTokenIfNeeded(hitsFieldName))
+		s := fmt.Sprintf("stats by (%s) count() hits", byFieldsStr)
 
 		q.mustAppendPipe(s)
 	}
@@ -986,13 +985,6 @@ func (q *Query) AddPipeOffsetLimit(offset, limit uint64) {
 
 	// optimize the query, so the `offset` and `limit` pipes could be joined with the preceding `sort` pipe.
 	q.pipes = optimizeOffsetLimitPipes(q.pipes)
-}
-
-func getUniqueResultName(resultName string, byFields []string) string {
-	for slices.Contains(byFields, resultName) {
-		resultName += "s"
-	}
-	return resultName
 }
 
 func (q *Query) mustAppendPipe(s string) {

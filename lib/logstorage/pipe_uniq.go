@@ -2,6 +2,7 @@ package logstorage
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"sync/atomic"
 
@@ -587,7 +588,12 @@ func parsePipeUniq(lex *lexer) (pipe, error) {
 	}
 	if lex.isKeyword("hits") {
 		lex.nextToken()
-		pu.hitsFieldName = getUniqueResultName("hits", pu.byFields)
+		hitsFieldName := "hits"
+		for slices.Contains(pu.byFields, hitsFieldName) {
+			hitsFieldName += "s"
+		}
+
+		pu.hitsFieldName = hitsFieldName
 	}
 
 	if lex.isKeyword("limit") {

@@ -3,6 +3,7 @@ package logstorage
 import (
 	"container/heap"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -657,9 +658,14 @@ func parsePipeTop(lex *lexer) (pipe, error) {
 			if err != nil {
 				return nil, fmt.Errorf("cannot parse rank field name in [%s]: %w", pt, err)
 			}
-			pt.rankFieldName = getUniqueResultName(rankFieldName, byFields)
+			pt.rankFieldName = rankFieldName
+			for slices.Contains(byFields, pt.rankFieldName) {
+				pt.rankFieldName += "s"
+			}
 		default:
-			pt.hitsFieldName = getUniqueResultName(pt.hitsFieldName, byFields)
+			for slices.Contains(byFields, pt.hitsFieldName) {
+				pt.hitsFieldName += "s"
+			}
 			return pt, nil
 		}
 	}
