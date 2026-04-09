@@ -24,6 +24,7 @@ according to the following docs:
 
 * SECURITY: upgrade Go builder from Go1.26.1 to Go1.26.2. See [the list of issues addressed in Go1.26.2](https://github.com/golang/go/issues?q=milestone%3AGo1.26.2%20label%3ACherryPickApproved).
 
+* FEATURE: [LogsLQ](https://docs.victoriametrics.com/victorialogs/logsql/): add an ability to search across multiple log fields with the `field_name_prefix*:filter` syntax. See [these docs](https://docs.victoriametrics.com/victorialogs/logsql/#searching-over-multiple-fields) for details. See [#82](https://github.com/VictoriaMetrics/VictoriaLogs/issues/82).
 * FEATURE: [Loki data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/): Add an ability to add the given prefix to log field names parsed from JSON message. This may be used for avoiding clash between log stream labels and the automatically parsed log field names. See [these docs](https://docs.victoriametrics.com/victorialogs/data-ingestion/promtail/#parsing-log-message) for details. See [#1127](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1127).
 
 * BUGFIX: [Kubernetes Collector](https://docs.victoriametrics.com/victorialogs/vlagent/#collect-kubernetes-pod-logs): honor [`-defaultMsgValue`](https://docs.victoriametrics.com/victorialogs/vlagent/#common-flags) for logs without message fields. Previously `vlagent` stored the hard-coded `missing _msg field; ...` text instead of the configured value when logs were collected via `kubernetesCollector`. See [#1283](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1283).

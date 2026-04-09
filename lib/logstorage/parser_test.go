@@ -859,12 +859,16 @@ func TestParseFilterSequence(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fs, ok := q.f.(*filterSequence)
+		fg, ok := q.f.(*filterGeneric)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterSequence; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterGeneric; filter: %s", q.f, q.f)
 		}
-		if fs.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", fs.fieldName, fieldNameExpected)
+		if fg.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fg.fieldName, fieldNameExpected)
+		}
+		fs, ok := fg.f.(*filterSequence)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterSequence; filter: %s", fg.f, fg.f)
 		}
 		if !reflect.DeepEqual(fs.phrases, phrasesExpected) {
 			t.Fatalf("unexpected phrases\ngot\n%q\nwant\n%q", fs.phrases, phrasesExpected)
@@ -885,12 +889,16 @@ func TestParseFilterIn(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fi, ok := q.f.(*filterIn)
+		fg, ok := q.f.(*filterGeneric)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterIn; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterGeneric; filter: %s", q.f, q.f)
 		}
-		if fi.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", fi.fieldName, fieldNameExpected)
+		if fg.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fg.fieldName, fieldNameExpected)
+		}
+		fi, ok := fg.f.(*filterIn)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterIn; filter: %s", fg.f, fg.f)
 		}
 		if !reflect.DeepEqual(fi.values.values, valuesExpected) {
 			t.Fatalf("unexpected values\ngot\n%q\nwant\n%q", fi.values.values, valuesExpected)
@@ -929,12 +937,16 @@ func TestParseFilterContainsAll(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fc, ok := q.f.(*filterContainsAll)
+		fg, ok := q.f.(*filterGeneric)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterContainsAll; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterGeneric; filter: %s", q.f, q.f)
 		}
-		if fc.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", fc.fieldName, fieldNameExpected)
+		if fg.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fg.fieldName, fieldNameExpected)
+		}
+		fc, ok := fg.f.(*filterContainsAll)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterContainsAll; filter: %s", fg.f, fg.f)
 		}
 		if !reflect.DeepEqual(fc.values.values, valuesExpected) {
 			t.Fatalf("unexpected values\ngot\n%q\nwant\n%q", fc.values.values, valuesExpected)
@@ -960,12 +972,16 @@ func TestParseFilterContainsAny(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fc, ok := q.f.(*filterContainsAny)
+		fg, ok := q.f.(*filterGeneric)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterContainsAny; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterGeneric; filter: %s", q.f, q.f)
 		}
-		if fc.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", fc.fieldName, fieldNameExpected)
+		if fg.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fg.fieldName, fieldNameExpected)
+		}
+		fc, ok := fg.f.(*filterContainsAny)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterContainsAny; filter: %s", fg.f, fg.f)
 		}
 		if !reflect.DeepEqual(fc.values.values, valuesExpected) {
 			t.Fatalf("unexpected values\ngot\n%q\nwant\n%q", fc.values.values, valuesExpected)
@@ -991,12 +1007,16 @@ func TestParseFilterIPv4Range(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fr, ok := q.f.(*filterIPv4Range)
+		fg, ok := q.f.(*filterGeneric)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterIPv4Range; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterGeneric; filter: %s", q.f, q.f)
 		}
-		if fr.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", fr.fieldName, fieldNameExpected)
+		if fg.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fg.fieldName, fieldNameExpected)
+		}
+		fr, ok := fg.f.(*filterIPv4Range)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterIPv4Range; filter: %s", fg.f, fg.f)
 		}
 		if fr.minValue != minValueExpected {
 			t.Fatalf("unexpected minValue; got %08x; want %08x", fr.minValue, minValueExpected)
@@ -1023,12 +1043,16 @@ func TestParseFilterIPv6Range(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fr, ok := q.f.(*filterIPv6Range)
+		fg, ok := q.f.(*filterGeneric)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterIPv6Range; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterGeneric; filter: %s", q.f, q.f)
 		}
-		if fr.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", fr.fieldName, fieldNameExpected)
+		if fg.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fg.fieldName, fieldNameExpected)
+		}
+		fr, ok := fg.f.(*filterIPv6Range)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterIPv6Range; filter: %s", fg.f, fg.f)
 		}
 		minWant := net.ParseIP(minIPExpected).To16()
 		if minWant == nil {
@@ -1062,12 +1086,16 @@ func TestParseFilterStringRange(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fr, ok := q.f.(*filterStringRange)
+		fg, ok := q.f.(*filterGeneric)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterStringRange; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterGeneric; filter: %s", q.f, q.f)
 		}
-		if fr.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", fr.fieldName, fieldNameExpected)
+		if fg.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fg.fieldName, fieldNameExpected)
+		}
+		fr, ok := fg.f.(*filterStringRange)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterStringRange; filter: %s", fg.f, fg.f)
 		}
 		if fr.minValue != minValueExpected {
 			t.Fatalf("unexpected minValue; got %q; want %q", fr.minValue, minValueExpected)
@@ -1093,12 +1121,16 @@ func TestParseFilterValueType(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fv, ok := q.f.(*filterValueType)
+		fg, ok := q.f.(*filterGeneric)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterValueType; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterGeneric; filter: %s", q.f, q.f)
 		}
-		if fv.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", fv.fieldName, fieldNameExpected)
+		if fg.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fg.fieldName, fieldNameExpected)
+		}
+		fv, ok := fg.f.(*filterValueType)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterValueType; filter: %s", fg.f, fg.f)
 		}
 		if fv.valueType != valueTypeExpected {
 			t.Fatalf("unexpected valueType; got %q; want %q", fv.valueType, valueTypeExpected)
@@ -1119,12 +1151,16 @@ func TestParseFilterJSONArrayContainsAny(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fa, ok := q.f.(*filterJSONArrayContainsAny)
+		fg, ok := q.f.(*filterGeneric)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterJSONArrayContainsAny; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterGeneric; filter: %s", q.f, q.f)
 		}
-		if fa.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", fa.fieldName, fieldNameExpected)
+		if fg.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fg.fieldName, fieldNameExpected)
+		}
+		fa, ok := fg.f.(*filterJSONArrayContainsAny)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterJSONArrayContainsAny; filter: %s", fg.f, fg.f)
 		}
 		if !reflect.DeepEqual(fa.values, valuesExpected) {
 			t.Fatalf("unexpected values; got %q; want %q", fa.values, valuesExpected)
@@ -1148,9 +1184,16 @@ func TestParseFilterRegexp(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fr, ok := q.f.(*filterRegexp)
+		fg, ok := q.f.(*filterGeneric)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterRegexp; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterGeneric; filter: %s", q.f, q.f)
+		}
+		if fg.fieldName != "_msg" {
+			t.Fatalf("unexpected fieldName; got %q; want _msg", fg.fieldName)
+		}
+		fr, ok := fg.f.(*filterRegexp)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterRegexp; filter: %s", fg.f, fg.f)
 		}
 		if reString := fr.re.String(); reString != reExpected {
 			t.Fatalf("unexpected regexp; got %q; want %q", reString, reExpected)
@@ -1171,12 +1214,16 @@ func TestParseAnyCaseFilterPhrase(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fp, ok := q.f.(*filterAnyCasePhrase)
+		fg, ok := q.f.(*filterGeneric)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterAnyCasePhrase; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterGeneric; filter: %s", q.f, q.f)
 		}
-		if fp.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", fp.fieldName, fieldNameExpected)
+		if fg.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fg.fieldName, fieldNameExpected)
+		}
+		fp, ok := fg.f.(*filterAnyCasePhrase)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterAnyCasePhrase; filter: %s", fg.f, fg.f)
 		}
 		if fp.phrase != phraseExpected {
 			t.Fatalf("unexpected phrase; got %q; want %q", fp.phrase, phraseExpected)
@@ -1197,12 +1244,16 @@ func TestParseAnyCaseFilterPrefix(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fp, ok := q.f.(*filterAnyCasePrefix)
+		fg, ok := q.f.(*filterGeneric)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterAnyCasePrefix; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterGeneric; filter: %s", q.f, q.f)
 		}
-		if fp.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", fp.fieldName, fieldNameExpected)
+		if fg.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fg.fieldName, fieldNameExpected)
+		}
+		fp, ok := fg.f.(*filterAnyCasePrefix)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterAnyCasePrefix; filter: %s", fg.f, fg.f)
 		}
 		if fp.prefix != prefixExpected {
 			t.Fatalf("unexpected prefix; got %q; want %q", fp.prefix, prefixExpected)
@@ -1225,12 +1276,16 @@ func TestParseFilterPhrase(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fp, ok := q.f.(*filterPhrase)
+		fg, ok := q.f.(*filterGeneric)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterPhrase; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterGeneric; filter: %s", q.f, q.f)
 		}
-		if fp.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", fp.fieldName, fieldNameExpected)
+		if fg.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fg.fieldName, fieldNameExpected)
+		}
+		fp, ok := fg.f.(*filterPhrase)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterPhrase; filter: %s", fg.f, fg.f)
 		}
 		if fp.phrase != phraseExpected {
 			t.Fatalf("unexpected prefix; got %q; want %q", fp.phrase, phraseExpected)
@@ -1254,12 +1309,16 @@ func TestParseFilterPrefix(t *testing.T) {
 			t.Fatalf("unexpected error: %s", err)
 		}
 		switch f := q.f.(type) {
-		case *filterPrefix:
+		case *filterGeneric:
 			if f.fieldName != fieldNameExpected {
 				t.Fatalf("unexpected fieldName; got %q; want %q", f.fieldName, fieldNameExpected)
 			}
-			if f.prefix != prefixExpected {
-				t.Fatalf("unexpected prefix; got %q; want %q", f.prefix, prefixExpected)
+			fp, ok := f.f.(*filterPrefix)
+			if !ok {
+				t.Fatalf("expecting prefix filter; got %T: %q", f.f, f.f)
+			}
+			if fp.prefix != prefixExpected {
+				t.Fatalf("unexpected prefix; got %q; want %q", fp.prefix, prefixExpected)
 			}
 		case *filterNoop:
 			if fieldNameExpected != "" {
@@ -1290,12 +1349,16 @@ func TestParseRangeFilter(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %s", err)
 		}
-		fr, ok := q.f.(*filterRange)
+		fg, ok := q.f.(*filterGeneric)
 		if !ok {
-			t.Fatalf("unexpected filter type; got %T; want *filterRange; filter: %s", q.f, q.f)
+			t.Fatalf("unexpected filter type; got %T; want *filterGeneric; filter: %s", q.f, q.f)
 		}
-		if fr.fieldName != fieldNameExpected {
-			t.Fatalf("unexpected fieldName; got %q; want %q", fr.fieldName, fieldNameExpected)
+		if fg.fieldName != fieldNameExpected {
+			t.Fatalf("unexpected fieldName; got %q; want %q", fg.fieldName, fieldNameExpected)
+		}
+		fr, ok := fg.f.(*filterRange)
+		if !ok {
+			t.Fatalf("unexpected filter type; got %T; want *filterRange; filter: %s", fg.f, fg.f)
 		}
 		if fr.minValue != minValueExpected {
 			t.Fatalf("unexpected minValue; got %v; want %v", fr.minValue, minValueExpected)
@@ -1680,6 +1743,8 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`-a:eq_field(b)`, `!a:eq_field(b)`)
 	f(`a:!eq_field(b)`, `!a:eq_field(b)`)
 	f(`a:-eq_field(b)`, `!a:eq_field(b)`)
+	f(`*:eq_field(foo)`, `"*":eq_field(foo)`)
+	f(`a*:eq_field(foo)`, `"a*":eq_field(foo)`)
 
 	// le_field filter
 	f("le_field(foo)", "le_field(foo)")
@@ -2344,6 +2409,21 @@ func TestParseQuery_Success(t *testing.T) {
 	f(`foo | filter count`, `foo "count"`)
 	f(`foo | * bar`, `foo bar`)
 	f(`foo | -bar`, `foo !bar`)
+
+	// wildcard field names in filters
+	f("foo*:bar", "foo*:bar")
+	f("f.oo* : bar", "f.oo*:bar")
+	f(`"foo"* : bar`, `foo*:bar`)
+	f(`'foo*' :bar`, `foo*:bar`)
+	f(`"foo:*":bar`, `"foo:*":bar`)
+	f(`*:abc`, `*:abc`)
+	f(`* :abc`, `*:abc`)
+	f(` * : abc`, `*:abc`)
+	f(`a *:foo`, `a *:foo`)
+
+	// These aren't wildcard field names, but just 'match all' filters
+	f(`a * :foo`, `a *:foo`)
+	f(`a * foo`, `a foo`)
 }
 
 func TestParseQuery_Failure(t *testing.T) {
@@ -2369,10 +2449,6 @@ func TestParseQuery_Failure(t *testing.T) {
 	f("NOT")
 	f("not (abc")
 	f("!")
-
-	// wildcard field names in filters
-	f(`*:foo`)
-	f(`foo*:bar`)
 
 	// missing field name
 	f(":foo")
@@ -2590,6 +2666,8 @@ func TestParseQuery_Failure(t *testing.T) {
 	f(`eq_field(foo, bar)`)
 	f(`eq_field(foo`)
 	f(`eq_field(foo,`)
+	f(`eq_field(*)`)
+	f(`eq_field(foo*)`)
 
 	// invalid le_field
 	f(`le_field(`)
