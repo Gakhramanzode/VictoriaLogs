@@ -4675,3 +4675,253 @@ func TestQueryIsFixedOutputFieldsOrder(t *testing.T) {
 	f("* | field_values x", true)
 	f("* | top x", true)
 }
+
+func TestFilterMatchRow(t *testing.T) {
+	f := func(fStr, rowStr string, resultExpected bool) {
+		t.Helper()
+
+		f, err := ParseFilter(fStr)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+
+		p := getLogfmtParser()
+		defer putLogfmtParser(p)
+
+		p.parse(rowStr)
+
+		result := f.MatchRow(p.fields)
+		if result != resultExpected {
+			t.Fatalf("unexpected result; got %v; want %v", result, resultExpected)
+		}
+	}
+
+	// basic filters
+	f(`*`, `a=b c=d`, true)
+	f(`foo`, `a=x _msg="a foo bar"`, true)
+	f(`foo`, `a=b c=d`, false)
+	f(`a:=b`, `a=b c=d`, true)
+	f(`c:d`, `a=b c=d`, true)
+	f(`c:foo`, `a=b c=d`, false)
+
+	// field name prefix
+	f(`*:x`, `a=b c=d q="a x" d=qwe`, true)
+	f(`*:abc`, `a=b c=d q="a x" d=qwe`, false)
+	f(`a*:x`, `a=x b=y abc="x qwe"`, true)
+	f(`a*:x`, `a=y b=y abc="x qwe"`, true)
+	f(`a*:foo`, `a=y b=y abc="x qwe"`, false)
+
+	// AND filter
+	f(`_msg:foo a:bar`, `a="x,bar" x=y _msg="foo bar"`, true)
+	f(`_msg:foo a:bax`, `a="x,bar" x=y _msg="foo bar"`, false)
+
+	// i(...) filter
+	f(`i(FoO)`, `_msg=foo`, true)
+	f(`i(FoO)`, `_msg=foobar`, false)
+
+	// i(...*) filter
+	f(`i(FoO*)`, `_msg=foo`, true)
+	f(`_msg:i(FoO*)`, `_msg=foobar`, true)
+	f(`i(FoO*)`, `_msg=zoobar`, false)
+	f(`i(FoO*)`, `a=foobar`, false)
+
+	// contains_all filter
+	f(`a:contains_all(x, y)`, `q=w`, false)
+	f(`a:contains_all(x, y)`, `a="y w x"`, true)
+	f(`a:contains_all(x, y)`, `a="y w"`, false)
+
+	// contains_any filter
+	f(`a:contains_any(x, y)`, `q=w`, false)
+	f(`a:contains_any(x, y)`, `a="y w x"`, true)
+	f(`a:contains_any(x, y)`, `a="y w"`, true)
+	f(`a:contains_any(x, y)`, `a="z w"`, false)
+
+	// contains_common_case filter
+	f(`a:contains_common_case(Error)`, `q=w`, false)
+	f(`a:contains_common_case(Error)`, `a="foo error"`, true)
+	f(`a:contains_common_case(Error)`, `a="foo ERROR bar"`, true)
+	f(`a:contains_common_case(Error)`, `a="foo bar"`, false)
+
+	// day_range filter
+	f(`_time:day_range[10:00, 12:00]`, `_time=2026-03-30T09:59:59.999999999`, false)
+	f(`_time:day_range[10:00, 12:00]`, `_time=2026-03-30T10:00:00`, true)
+	f(`_time:day_range[10:00, 12:00]`, `_time=2026-03-30T11:00:00.123456789`, true)
+	f(`_time:day_range[10:00, 12:00]`, `_time=2026-03-30T12:00:00`, true)
+	f(`_time:day_range[10:00, 12:00]`, `_time=2026-03-30T12:00:00.000000001`, false)
+
+	// eq_field filter
+	f(`a:eq_field(b)`, `foo=bar`, true)
+	f(`a:eq_field(b)`, `foo=bar a=x`, false)
+	f(`a:eq_field(b)`, `foo=bar b=x a=x`, true)
+	f(`a:eq_field(b)`, `foo=bar b=x a=y`, false)
+
+	// equals_common_case filter
+	f(`a:equals_common_case(Error)`, `q=w`, false)
+	f(`a:equals_common_case(Error)`, `a="foo error"`, false)
+	f(`a:equals_common_case(Error)`, `a=error`, true)
+	f(`a:equals_common_case(Error)`, `a=ERROR`, true)
+
+	// =... filter
+	f(`a:=b`, `a=c`, false)
+	f(`a:=b`, `a=b`, true)
+	f(`a:=b`, `a="b c"`, false)
+
+	// =...* filter
+	f(`a:=b*`, `a=c`, false)
+	f(`a:=b*`, `a=b`, true)
+	f(`a:=b*`, `a="b c"`, true)
+	f(`a:=b*`, `a="c b"`, false)
+
+	// in(...) filter
+	f(`a:in(b,c)`, `a=x`, false)
+	f(`a:in(b,c)`, `a=b`, true)
+	f(`a:in(b,c)`, `a="c"`, true)
+	f(`a:in(b,c)`, `a="c foo"`, false)
+
+	// ipv4_range filter
+	f(`a:ipv4_range(127.0.0.0/8)`, `a=foo`, false)
+	f(`a:ipv4_range(127.0.0.0/8)`, `a=127.0.0.0`, true)
+	f(`a:ipv4_range(127.0.0.0/8)`, `a=127.3.5.1`, true)
+	f(`a:ipv4_range(127.0.0.0/8)`, `a=127.255.255.255`, true)
+	f(`a:ipv4_range(127.0.0.0/8)`, `a=128.0.0.0`, false)
+	f(`a:ipv4_range(127.0.0.0/8)`, `a="foo 127.0.0.0"`, false)
+
+	// ipv6_range filter
+	f(`a:ipv6_range("2001:db8::/112")`, `a=foo`, false)
+	f(`a:ipv6_range("2001:db8::/112")`, `a=2001:db8::1`, true)
+	f(`a:ipv6_range("2001:db8::/112")`, `a=2002:db8::1`, false)
+	f(`a:ipv6_range("2001:db8::/112")`, `a="2001:db8::1 foo"`, false)
+
+	// json_array_contains_any filter
+	f(`a:json_array_contains_any(x,y)`, `x=foo`, false)
+	f(`a:json_array_contains_any(x,y)`, `a=foo`, false)
+	f(`a:json_array_contains_any(x,y)`, `a=["foo","bar"]`, false)
+	f(`a:json_array_contains_any(x,y)`, `a=["y","foo","x","bar"]`, true)
+	f(`a:json_array_contains_any(x,y)`, `a=[y,foo,x,bar]`, false)
+
+	// le_field filter
+	f(`a:le_field(b)`, `a=foo b=bar`, false)
+	f(`a:le_field(b)`, `a=bar b=foo`, true)
+	f(`a:le_field(b)`, `b=foo`, true)
+	f(`a:le_field(b)`, `x=y`, true)
+
+	// len_range filter
+	f(`a:len_range(1,2)`, `x=y`, false)
+	f(`a:len_range(1,2)`, `a=y`, true)
+	f(`a:len_range(1,2)`, `a=yx`, true)
+	f(`a:len_range(1,2)`, `a=yxz`, false)
+
+	// not filter
+	f(`-a:b`, `x=y`, true)
+	f(`-a:b`, `a="b c"`, false)
+	f(`-a:b`, `a="x c"`, true)
+
+	// or filter
+	f(`a:(x or y)`, `x=y`, false)
+	f(`a:(x or y)`, `a='w x z'`, true)
+	f(`a:(x or y)`, `a='w z'`, false)
+
+	// pattern_match filter
+	f(`a:pattern_match("x <N> y")`, `foo=bar`, false)
+	f(`a:pattern_match("x <N> y")`, `a=bar`, false)
+	f(`a:pattern_match("x <N> y")`, `a='bar x 10 y q'`, true)
+
+	// pattern_match_full filter
+	f(`a:pattern_match_full("x <N> y")`, `foo=bar`, false)
+	f(`a:pattern_match_full("x <N> y")`, `a=bar`, false)
+	f(`a:pattern_match_full("x <N> y")`, `a='bar x 10 y q'`, false)
+	f(`a:pattern_match_full("x <N> y")`, `a='x 10 y'`, true)
+
+	// pattern_match_prefix filter
+	f(`a:pattern_match_prefix("x <N> y")`, `foo=bar`, false)
+	f(`a:pattern_match_prefix("x <N> y")`, `a=bar`, false)
+	f(`a:pattern_match_prefix("x <N> y")`, `a='bar x 10 y q'`, false)
+	f(`a:pattern_match_prefix("x <N> y")`, `a='x 10 y q'`, true)
+
+	// pattern_match_suffix filter
+	f(`a:pattern_match_suffix("x <N> y")`, `foo=bar`, false)
+	f(`a:pattern_match_suffix("x <N> y")`, `a=bar`, false)
+	f(`a:pattern_match_suffix("x <N> y")`, `a='bar x 10 y q'`, false)
+	f(`a:pattern_match_suffix("x <N> y")`, `a='bar x 10 y'`, true)
+
+	// phrase filter
+	f(`a:"b c"`, `x=y`, false)
+	f(`a:"b c"`, `a='b c'`, true)
+	f(`a:"b c"`, `a='x b c d'`, true)
+	f(`a:"b c"`, `a='x b cat d'`, false)
+
+	// prefix filter
+	f(`a:"b c"*`, `x=y`, false)
+	f(`a:"b c"*`, `a='b c'`, true)
+	f(`a:"b c"*`, `a='x b c d'`, true)
+	f(`a:"b c"*`, `a='x b cat d'`, true)
+	f(`a:"b c"*`, `a='x b zat d'`, false)
+
+	// range filter
+	f(`a:range(1.23, inf)`, `x=y`, false)
+	f(`a:range(1.23, inf)`, `a=1.23`, false)
+	f(`a:range(1.23, inf)`, `a=1.234`, true)
+	f(`a:range(1.23, inf)`, `a=123`, true)
+
+	// ~"..." filter
+	f(`a:~"x.z"`, `q=w`, false)
+	f(`a:~"x.z"`, `a=w`, false)
+	f(`a:~"x.z"`, `a=xyz`, true)
+	f(`a:~"x.z"`, `a='abxyzde'`, true)
+	f(`a:~"x.z"`, `a='abxyxde'`, false)
+
+	// seq(...) filter
+	f(`a:seq(x,y)`, `q=w`, false)
+	f(`a:seq(x,y)`, `a=w`, false)
+	f(`a:seq(x,y)`, `a='z x w y'`, true)
+	f(`a:seq(x,y)`, `a='z x w yy'`, false)
+	f(`a:seq(x,y)`, `a='z y w x'`, false)
+
+	// _stream:... filter
+	f(`_stream:{a=b}`, `_stream={a="b"}`, true)
+	f(`{a=~"b.+"}`, `_stream={a="bcd"}`, true)
+	f(`{a=~"b.+"}`, `_stream={a="abcd"}`, false)
+	f(`{a=~"b.+"}`, `a={a="bcd"}`, false)
+
+	// _stream_id:... filter
+	f(`_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`, `q=w`, false)
+	f(`_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`, `_stream_id=123`, false)
+	f(`_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`, `_stream_id=0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`, true)
+	f(`_stream_id:0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`, `_stream_id=0000007b000001c8302bc96e02e54e5524b3a68ec271e55d`, false)
+	f(`_stream_id:in(0000007b000001c8302bc96e02e54e5524b3a68ec271e55e,1000007b000001c8302bc96e02e54e5524b3a68ec271e55e)`, `_stream_id=0000007b000001c8302bc96e02e54e5524b3a68ec271e55e`, true)
+	f(`_stream_id:in(0000007b000001c8302bc96e02e54e5524b3a68ec271e55e,1000007b000001c8302bc96e02e54e5524b3a68ec271e55e)`, `_stream_id=1000007b000001c8302bc96e02e54e5524b3a68ec271e55e`, true)
+	f(`_stream_id:in(0000007b000001c8302bc96e02e54e5524b3a68ec271e55e,1000007b000001c8302bc96e02e54e5524b3a68ec271e55e)`, `_stream_id=0000007b000001c8302bc96e02e54e5524b3a68ec271e55d`, false)
+
+	// string_range filter
+	f(`a:string_range(x,y)`, `q=w`, false)
+	f(`a:string_range(x,y)`, `a=w`, false)
+	f(`a:string_range(x,y)`, `a=x`, true)
+	f(`a:string_range(x,y)`, `a=xsafd`, true)
+	f(`a:string_range(x,y)`, `a=y`, false)
+	f(`a:string_range(x,y)`, `a='foo x'`, false)
+
+	// *...* filter
+	f(`a:*x*`, `q=w`, false)
+	f(`a:*x*`, `a=x`, true)
+	f(`a:*x*`, `a=axbc`, true)
+	f(`a:*x*`, `a='w axbc d'`, true)
+	f(`a:*x*`, `a='w abc d'`, false)
+
+	// _time:... filter
+	f(`_time:2026-03-30`, `q=w`, false)
+	f(`_time:2026-03-30`, `_time=2026-03-30T10:20:30`, true)
+	f(`_time:2026-03-30`, `_time=2026-04-28T10:20:30`, false)
+
+	// value_type filter
+	f(`a:value_type(string)`, `x=y`, false)
+	f(`a:value_type(string)`, `a=y`, true)
+	f(`a:value_type(dict)`, `a=y`, false)
+
+	// week_range filter
+	f(`_time:week_range[Mon, Fri]`, `q=w`, false)
+	f(`_time:week_range[Mon, Fri]`, `_time=foo`, false)
+	f(`_time:week_range[Mon, Fri]`, `_time=2026-04-10T10:20:30`, true)
+	f(`_time:week_range[Mon, Fri]`, `_time=2026-04-11T10:20:30`, false)
+	f(`_time:week_range[Mon, Fri]`, `_time=2026-04-05T10:20:30`, false)
+	f(`_time:week_range[Mon, Fri]`, `_time=2026-04-06T10:20:30`, true)
+}

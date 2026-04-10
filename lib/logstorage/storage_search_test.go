@@ -775,6 +775,13 @@ func TestStorageRunQuery(t *testing.T) {
 			},
 		})
 	})
+	t.Run("field-prefix-filter-match-in-filter-pipe", func(t *testing.T) {
+		f(t, `* | format "foo" as bar | filter s*:foo | stats count() rows`, [][]Field{
+			{
+				{"rows", "1155"},
+			},
+		})
+	})
 	t.Run("field-prefix-filter-non-existing-prefix", func(t *testing.T) {
 		f(t, `f*:foo | stats count() rows`, [][]Field{
 			{

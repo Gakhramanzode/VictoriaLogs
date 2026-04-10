@@ -26,11 +26,13 @@ func (fv *filterValueType) String() string {
 
 func (fv *filterValueType) matchRowByField(fields []Field, fieldName string) bool {
 	v := getFieldValueByName(fields, fieldName)
+	if v == "" {
+		// empty values have no any type
+		return false
+	}
 
 	// Assume all the fields have string type, since we cannot determine the real type of the value at the given field.
-	vt := valueTypeString
-
-	return v == vt.String()
+	return fv.valueType == "string"
 }
 
 func (fv *filterValueType) applyToBlockResultByField(br *blockResult, bm *bitmap, fieldName string) {
