@@ -77,6 +77,7 @@ func Init(tmpDataPath string) {
 			select {
 			case <-stopCh:
 				ticker.Stop()
+				return
 			case <-ticker.C:
 				for i, pattern := range *glob {
 					processGlob(i, pattern)
