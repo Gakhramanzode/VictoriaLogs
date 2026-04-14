@@ -3286,6 +3286,8 @@ func getWeekRangeArg(lex *lexer) (time.Weekday, string, error) {
 		day = time.Friday
 	case "sat", "saturday":
 		day = time.Saturday
+	default:
+		return 0, "", fmt.Errorf("cannot parse %q as weekday", argStr)
 	}
 
 	return day, argStr, nil

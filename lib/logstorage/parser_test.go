@@ -2627,6 +2627,8 @@ func TestParseQuery_Failure(t *testing.T) {
 	f("_time:week_range[foo")
 	f("_time:week_range[Mon,")
 	f("_time:week_range[Mon,bar")
+	f("_time:week_range[mom,Wed]")
+	f("_time:week_range[Sun,mom]")
 	f("_time:week_range[Mon,Fri")
 	f("_time:week_range[Mon,Fri] offset foobar")
 
