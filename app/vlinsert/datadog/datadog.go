@@ -236,12 +236,12 @@ func readLogsRequest(ts int64, data []byte, lmp insertutil.LogMessageProcessor) 
 								Name:  bytesutil.ToUnsafeString(pair),
 								Value: "no_label_value",
 							})
-							continue
+						} else {
+							fields = append(fields, logstorage.Field{
+								Name:  bytesutil.ToUnsafeString(pair[:n]),
+								Value: bytesutil.ToUnsafeString(pair[n+1:]),
+							})
 						}
-						fields = append(fields, logstorage.Field{
-							Name:  bytesutil.ToUnsafeString(pair[:n]),
-							Value: bytesutil.ToUnsafeString(pair[n+1:]),
-						})
 					}
 				}
 			default:
