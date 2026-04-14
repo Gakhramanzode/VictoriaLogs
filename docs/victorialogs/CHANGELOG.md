@@ -40,7 +40,7 @@ according to the following docs:
 * BUGFIX: [/select/logsql/hits](https://docs.victoriametrics.com/victorialogs/querying/#querying-hits-stats): fix panic when the internal `stats` pipe generated for this endpoint uses `hits` both as a grouping field and as the result name. See [#1278](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1278).
 * BUGFIX: [OpenTelemetry data ingestion](https://docs.victoriametrics.com/victorialogs/data-ingestion/opentelemetry/): replace custom `severity` field with `severity_number` and `severity_text` to be compatible with other solutions. See [#1246](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1246).
 * BUGFIX: [vlagent](https://docs.victoriametrics.com/victorialogs/vlagent/): hide sensitive values passed via `-remoteWrite.headers` in `/metrics`, `/flags`, and startup logs. Previously these values could be exposed in plain text.
-* BUGFIX: [storage](https://docs.victoriametrics.com/victorialogs/keyconcepts/#partitions): ignore non-directory entries under `partitions` on startup. Previously, files such as `.DS_Store` could trigger a startup panic. See [#996](https://github.com/VictoriaMetrics/VictoriaLogs/issues/996).
+* BUGFIX: [storage](https://docs.victoriametrics.com/victorialogs/keyconcepts/#partitions): fix `cannot read directory contents: open ... .DS_Store: not a directory` panic when restarting VictoriaLogs on MacOS. See [#996](https://github.com/VictoriaMetrics/VictoriaLogs/issues/996).
 
 ## [v1.49.0](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.49.0)
 
