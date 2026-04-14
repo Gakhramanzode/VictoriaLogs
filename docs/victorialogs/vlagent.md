@@ -367,9 +367,9 @@ By default, `vlagent` uses `hostname` and `file` as [`_stream`](https://docs.vic
 
 See also ready-to-use `vlagent` configuration examples for the corresponding log source:
 
-- [Collecting nginx logs](https://docs.victoriametrics.com/victorialogs/vlagent/victorialogs/vlagent/#collecting-nginx-logs).
-- [Collecting Redis logs](https://docs.victoriametrics.com/victorialogs/vlagent/victorialogs/vlagent/#collecting-redis-logs).
-- [Collecting ClickHouse logs](https://docs.victoriametrics.com/victorialogs/vlagent/victorialogs/vlagent/#collecting-clickhouse-logs).
+- [Collecting nginx logs](https://docs.victoriametrics.com/victorialogs/vlagent/#collecting-nginx-logs).
+- [Collecting Redis logs](https://docs.victoriametrics.com/victorialogs/vlagent/#collecting-redis-logs).
+- [Collecting ClickHouse logs](https://docs.victoriametrics.com/victorialogs/vlagent/#collecting-clickhouse-logs).
 
 ### Glob pattern requirements
 
