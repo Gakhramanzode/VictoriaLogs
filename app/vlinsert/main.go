@@ -66,14 +66,12 @@ func RequestHandler(w http.ResponseWriter, r *http.Request) bool {
 			httpserver.Errorf(w, r, "requests to /api/v2/logs and /api/v1/validate are disabled with -insert.disable command-line flag")
 			return true
 		}
-
 		return datadog.RequestHandler(path, w, r)
 	case strings.HasPrefix(path, "/services/collector/"):
 		if *disableInsert {
 			httpserver.Errorf(w, r, "requests to /services/collector/* are disabled with -insert.disable command-line flag")
 			return true
 		}
-
 		return splunk.RequestHandler(path, w, r)
 	}
 

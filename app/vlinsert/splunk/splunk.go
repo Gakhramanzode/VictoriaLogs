@@ -17,31 +17,50 @@ import (
 )
 
 var (
-	splunkStreamFields = flagutil.NewArrayString("splunk.streamFields", "Comma-separated list of fields to use as log stream fields for logs ingested over splunk protocol. "+
+	splunkStreamFields = flagutil.NewArrayString("splunk.streamFields", "Comma-separated list of fields to use as log stream fields for logs ingested over Splunk protocol. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/splunk/#stream-fields")
-	splunkIgnoreFields = flagutil.NewArrayString("splunk.ignoreFields", "Comma-separated list of fields to ignore for logs ingested over splunk protocol. "+
+	splunkIgnoreFields = flagutil.NewArrayString("splunk.ignoreFields", "Comma-separated list of fields to ignore for logs ingested over Splunk protocol. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/splunk/#dropping-fields")
-	splunkPreserveJSONKeys = flagutil.NewArrayString("splunk.preserveJSONKeys", "Comma-separated list of JSON keys that should be preserved from flattening. ")
-	splunkTimeField        = flag.String("splunk.timeField", "time", "Field to use as a log timestamp for logs ingested via splunk protocol. "+
+	splunkPreserveJSONKeys = flagutil.NewArrayString("splunk.preserveJSONKeys", "Comma-separated list of JSON keys that should be preserved from flattening "+
+		"when ingested via Splunk protocol. See https://docs.victoriametrics.com/victorialogs/data-ingestion/splunk/ and "+
+		"https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model")
+	splunkTimeField = flag.String("splunk.timeField", "time", "Field to use as a log timestamp for logs ingested via Splunk protocol. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/splunk/#time-field")
-	splunkMsgField = flagutil.NewArrayString("splunk.msgField", "Field to use as a log message for logs ingested via splunk protocol. "+
+	splunkMsgField = flagutil.NewArrayString("splunk.msgField", "Field to use as a log message for logs ingested via Splunk protocol. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/splunk/#message-field")
 	splunkTenantID = flag.String("splunk.tenantID", "0:0", "TenantID for logs ingested via the Splunk endpoint. "+
 		"See https://docs.victoriametrics.com/victorialogs/data-ingestion/splunk/#multitenancy")
-	splunkMaxRequestSize = flagutil.NewBytes("splunk.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single Splunk request")
+	splunkMaxRequestSize = flagutil.NewBytes("splunk.maxRequestSize", 64*1024*1024, "The maximum size in bytes of a single Splunk request; see https://docs.victoriametrics.com/victorialogs/data-ingestion/splunk/")
 )
 
 var tenantID logstorage.TenantID
 
-// MustInit initializes splunk parser
+// MustInit initializes Splunk parser
 //
 // This function must be called after flag.Parse().
 func MustInit() {
 	t, err := logstorage.ParseTenantID(*splunkTenantID)
 	if err != nil {
-		logger.Panicf("cannot parse -splunk.tenantID=%q for splunk: %v", *splunkTenantID, err)
+		logger.Fatalf("cannot parse -splunk.tenantID=%q: %s; see https://docs.victoriametrics.com/victorialogs/data-ingestion/splunk/", *splunkTenantID, err)
 	}
 	tenantID = t
+
+	// Initialize streamFields
+	streamFields = defaultStreamFields
+	if len(*splunkStreamFields) > 0 {
+		streamFields = *splunkStreamFields
+	}
+	if err := logstorage.CheckStreamFieldNames(streamFields); err != nil {
+		logger.Fatalf("invalid stream field names in -splunk.streamFields=%s: %s; see https://docs.victoriametrics.com/victorialogs/data-ingestion/splunk/#stream-fields", streamFields, err)
+	}
+}
+
+var streamFields []string
+
+var defaultStreamFields = []string{
+	"host",
+	"source",
+	"sourcetype",
 }
 
 func getCommonParams(r *http.Request) (*insertutil.CommonParams, error) {
@@ -57,7 +76,7 @@ func getCommonParams(r *http.Request) (*insertutil.CommonParams, error) {
 		cp.TimeFields = []string{*splunkTimeField}
 	}
 	if len(cp.StreamFields) == 0 {
-		cp.StreamFields = getStreamFields()
+		cp.StreamFields = streamFields
 	}
 	if len(cp.IgnoreFields) == 0 {
 		cp.IgnoreFields = *splunkIgnoreFields
@@ -75,25 +94,14 @@ func getMsgFields() []string {
 	if len(*splunkMsgField) > 0 {
 		return *splunkMsgField
 	}
-	return []string{
-		"event",
-		"event.log",
-		"event.line",
-		"event.message",
-	}
+	return defaultMsgFields
 }
 
-func getStreamFields() []string {
-	if len(*splunkStreamFields) > 0 {
-		return *splunkStreamFields
-	}
-	return defaultStreamFields
-}
-
-var defaultStreamFields = []string{
-	"sourcetype",
-	"host",
-	"source",
+var defaultMsgFields = []string{
+	"event",
+	"event.log",
+	"event.line",
+	"event.message",
 }
 
 // RequestHandler processes splunk insert requests
@@ -101,7 +109,8 @@ func RequestHandler(path string, w http.ResponseWriter, r *http.Request) bool {
 	switch path {
 	case "/insert/splunk/services/collector/health", "/services/collector/health":
 		w.WriteHeader(http.StatusOK)
-	case "/insert/splunk/services/collector/event", "/insert/splunk/services/collector/event/1.0", "/services/collector/event", "/services/collector/event/1.0":
+	case "/insert/splunk/services/collector/event", "/insert/splunk/services/collector/event/1.0",
+		"/services/collector/event", "/services/collector/event/1.0":
 		requestHandler(w, r)
 	default:
 		return false
@@ -159,7 +168,7 @@ func processEvent(data []byte, lmp insertutil.LogMessageProcessor, timeFields, m
 	for s.NextLogMessage() {
 		ts, err := insertutil.ExtractTimestampFromFields(timeFields, s.Fields)
 		if err != nil {
-			logger.Warnf("splunk: failed to parse JSON message #%d timestamp: %s", n+1, err)
+			logger.Warnf("splunk: failed to parse timestamp for JSON message #%d: %s", n+1, err)
 			errorsTotal.Add(1)
 			continue
 		}

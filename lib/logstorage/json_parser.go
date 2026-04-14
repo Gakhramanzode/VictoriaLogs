@@ -13,6 +13,8 @@ import (
 //
 // See https://docs.victoriametrics.com/victorialogs/keyconcepts/#data-model
 //
+// Use ParseLogMessage() for parsing the JSON log message.
+//
 // Use GetJSONParser() for obtaining the parser.
 type JSONParser struct {
 	commonJSON
@@ -50,7 +52,7 @@ var parserPool sync.Pool
 //
 // The p.Fields remains valid until the next call to ParseLogMessage() or PutJSONParser().
 func (p *JSONParser) ParseLogMessage(msg []byte, preserveKeys []string, fieldPrefix string) error {
-	return p.parseLogMessage(msg, preserveKeys, maxFieldNameSize, fieldPrefix)
+	return p.parseLogMessage(msg, preserveKeys, fieldPrefix, maxFieldNameSize)
 }
 
 // parseLogMessage parses the given JSON log message msg into p.Fields.
@@ -59,7 +61,7 @@ func (p *JSONParser) ParseLogMessage(msg []byte, preserveKeys []string, fieldPre
 // or its length exceeds maxFieldNameLen.
 //
 // The p.Fields remains valid until the next call to ParseLogMessage() or PutJSONParser().
-func (p *JSONParser) parseLogMessage(msg []byte, preserveKeys []string, maxFieldNameLen int, fieldPrefix string) error {
+func (p *JSONParser) parseLogMessage(msg []byte, preserveKeys []string, fieldPrefix string, maxFieldNameLen int) error {
 	p.reset()
 
 	msgStr := bytesutil.ToUnsafeString(msg)
@@ -71,23 +73,19 @@ func (p *JSONParser) parseLogMessage(msg []byte, preserveKeys []string, maxField
 	if err != nil {
 		return err
 	}
-	p.init(preserveKeys, maxFieldNameLen, fieldPrefix)
+	p.init(preserveKeys, fieldPrefix, maxFieldNameLen)
 	p.appendLogFields(o)
 	return nil
 }
 
 type commonJSON struct {
-	// Fields contains the parsed JSON line after Scan() call
-	//
-	// The Fields are valid until the next call to ScanLogMessage()
-	// or until the parser is returned to the pool with PutJSONScanner() call.
+	// Fields contains the parsed JSON line after appendLogFields() call.
 	Fields []Field
 
 	// buf is used for holding the backing data for Fields
 	buf []byte
 
-	// prefixBuf is used for holding the current key prefix
-	// when it is composed from multiple keys.
+	// prefixBuf is used for holding the current key prefix when it is composed from multiple keys.
 	prefixBuf []byte
 
 	preserveKeys    []string
@@ -102,7 +100,7 @@ func (c *commonJSON) reset() {
 	c.maxFieldNameLen = 0
 }
 
-func (c *commonJSON) init(preserveKeys []string, maxFieldNameLen int, fieldPrefix string) {
+func (c *commonJSON) init(preserveKeys []string, fieldPrefix string, maxFieldNameLen int) {
 	c.preserveKeys = preserveKeys
 	c.fieldPrefix = fieldPrefix
 	c.maxFieldNameLen = maxFieldNameLen
