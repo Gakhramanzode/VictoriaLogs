@@ -22,7 +22,7 @@ according to the following docs:
 
 ## tip
 
-* FEATURE: [querying API](https://docs.victoriametrics.com/victorialogs/querying/): allow using [`limit`](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe) and [`offset`](https://docs.victoriametrics.com/victorialogs/logsql/#offset-pipe) pipes after the [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) in queries to [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats). See [#1296](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1296).
+* FEATURE: [querying API](https://docs.victoriametrics.com/victorialogs/querying/): allow using [`limit`](https://docs.victoriametrics.com/victorialogs/logsql/#limit-pipe) and [`offset`](https://docs.victoriametrics.com/victorialogs/logsql/#offset-pipe) pipes after the [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) in queries to [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats). This enables the usage for these pipes in [alerting and recording rules for VictoriaLogs](https://docs.victoriametrics.com/victorialogs/vmalert/). See [#1296](https://github.com/VictoriaMetrics/VictoriaLogs/issues/1296).
 
 ## [v1.50.0](https://github.com/VictoriaMetrics/VictoriaLogs/releases/tag/v1.50.0)
 
