@@ -14,7 +14,7 @@ aliases:
 - /VictoriaLogs/vmalert.html
 ---
 
-[vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/){{% available_from "v1.106.0" %}} integrates with VictoriaLogs {{% available_from "v0.36.0" "logs" %}} via stats APIs [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats)
+[vmalert](https://docs.victoriametrics.com/victoriametrics/vmalert/) integrates with VictoriaLogs via stats APIs [`/select/logsql/stats_query`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-stats)
 and [`/select/logsql/stats_query_range`](https://docs.victoriametrics.com/victorialogs/querying/#querying-log-range-stats).
 These endpoints return log stats in a format compatible with the [Prometheus querying API](https://prometheus.io/docs/prometheus/latest/querying/api/#instant-queries).
 This allows using VictoriaLogs as the datasource in vmalert and creating alerting and recording rules via [LogsQL](https://docs.victoriametrics.com/victorialogs/logsql/).

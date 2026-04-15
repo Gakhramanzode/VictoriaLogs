@@ -40,18 +40,8 @@ docs-debug: docs-image
 		-v ./docs/victorialogs:/opt/docs/content/victorialogs \
 			vmdocs-docker-package
 
-docs-update-version: docs-image
-	$(if $(filter v%,$(PKG_TAG)), \
-		docker run \
-			--rm \
-			--entrypoint /usr/bin/find \
-			--platform $(DOCKER_PLATFORM) \
-			--name vmdocs-docker-container \
-			-v ./docs/victorialogs:/opt/docs/content/victorialogs vmdocs-docker-package \
-				content \
-					-regex ".*\.md" \
-					-exec sed -i 's/{{% available_from "#" %}}/{{% available_from "$(PKG_TAG)" %}}/g' {} \;, \
-		$(info "Skipping docs version update, invalid $$PKG_TAG: $(PKG_TAG)"))
+docs-update-version:
+	find docs/victorialogs/ -name '*.md' -exec sed -i 's/{{% available_from "#" %}}/{{% available_from "$(TAG)" %}}/g' {} \;
 
 # Converts images at docs folder to webp format
 # See https://docs.victoriametrics.com/victoriametrics/single-server-victoriametrics/#images-in-documentation
