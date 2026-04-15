@@ -108,16 +108,16 @@ groups:
     interval: 5m
     rules:
       - alert: HasErrorLog
-        expr: 'env: "prod" AND status:~"error|warn" | stats by (service, kubernetes.pod) count() as errorLog | filter errorLog:>0'
+        expr: 'env:=prod AND status:in(error,warn) | stats by (service, kubernetes.pod) count() as error_logs'
         annotations:
-          description: 'Service {{$labels.service}} (pod {{ index $labels "kubernetes.pod" }}) generated {{$labels.errorLog}} error logs in the last 5 minutes'
+          description: 'Service {{$labels.service}} (pod {{ index $labels "kubernetes.pod" }}) generated {{$labels.error_logs}} error logs in the last 5 minutes'
 
   - name: ServiceRequest
     type: vlogs
     interval: 5m
     rules:
       - alert: TooManyFailedRequest
-        expr: '* | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip) count() if (code:~4.*) as failed, count() as total| math failed / total as failed_percentage| filter failed_percentage :> 0.01 | fields ip,failed_percentage'
+        expr: '* | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip) count() if (code:~"4.*") as failed, count() as total | math failed / total as failed_percentage | filter failed_percentage:>0.01 | fields ip, failed_percentage'
         annotations:
           description: "Connection from address {{$labels.ip}} has {{$value}}% failed requests in the last 5 minutes"
 ```
