@@ -99,43 +99,84 @@ See the complete group attributes [here](https://docs.victoriametrics.com/victor
 
 #### Alerting rules
 
-Examples:
+`vmalert` executes the given [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) from the `expr` option
+according to the provided `interval`. See [config options for alerting rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#alerting-rules)
+for more details.
+
+The `expr` query must contain [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) in order to calculate
+some metric over the selected log, and use this metric in alerting threshold. Use [`filter` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#filter-pipe)
+for filtering the calculated metric according to the needed threshold:
 
 ```yaml
 groups:
-  - name: ServiceLog
-    type: vlogs
-    interval: 5m
-    rules:
-      - alert: HasErrorLog
-        expr: 'env:=prod AND status:in(error,warn) | stats by (service, kubernetes.pod) count() as error_logs'
-        annotations:
-          description: 'Service {{$labels.service}} (pod {{ index $labels "kubernetes.pod" }}) generated {{$labels.error_logs}} error logs in the last 5 minutes'
+- name: ServiceLog
+  type: vlogs
+  interval: 5m
+  rules:
+  - alert: HasErrorLog
+    expr: 'env:=prod AND status:in(error,warn) | stats by (service, kubernetes.pod) count() as error_logs | filter error_logs:>10'
+    annotations:
+      description: 'Service {{$labels.service}} (pod {{ index $labels "kubernetes.pod" }}) generated {{$labels.error_logs}} error logs in the last 5 minutes'
+```
 
-  - name: ServiceRequest
-    type: vlogs
-    interval: 5m
-    rules:
-      - alert: TooManyFailedRequest
-        expr: '* | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip) count() if (code:~"4.*") as failed, count() as total | math failed / total as failed_percentage | filter failed_percentage:>0.01 | fields ip, failed_percentage'
-        annotations:
-          description: "Connection from address {{$labels.ip}} has {{$value}}% failed requests in the last 5 minutes"
+It is possible to group the calculated metrics by arbitrary log fields, by using [`stats by (...)` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-fields).
+
+Use [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe)
+for performing additional calculations over the metrics calculated with [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe).
+
+Use [`fields` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) for leaving only the needed metrics.
+
+The following example of alerting rule uses `stats by (...)`, `math` and `fields` pipes:
+
+
+```yaml
+- name: ServiceRequest
+  type: vlogs
+  interval: 5m
+  rules:
+  - alert: TooManyFailedRequestsByIP
+    expr: '* | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip) count() if (code:~"4.*") as failed, count() as total | math (failed / total) * 100 as failed_percentage | filter failed_percentage:>10 | fields ip, failed_percentage'
+    annotations:
+      description: "Connection from address {{$labels.ip}} has {{$value}}% failed requests in the last 5 minutes"
 ```
 
 #### Recording rules
 
-Examples:
+`vmalert` executes the given [LogsQL query](https://docs.victoriametrics.com/victorialogs/logsql/) from the `expr` option
+according to the provided `interval` and stores the query results as metrics at the remote storage specified via `-remoteWrite.url` command-line flag.
+See [config options for recording rules](https://docs.victoriametrics.com/victoriametrics/vmalert/#recording-rules)
+for more details.
+
+The `expr` query must contain [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe) in order to calculate
+some metric over the selected log:
 
 ```yaml
 groups:
-  - name: RequestCount
-    type: vlogs
-    interval: 5m
-    rules:
-      - record: nginxRequestCount
-        expr: 'env: "test" AND service: "nginx" | stats count(*) as requests'
-      - record: prodRequestCount
-        expr: 'env: "prod" | stats by (service) count(*) as requests'
+- name: RequestCount
+  type: vlogs
+  interval: 5m
+  rules:
+  - record: nginxRequestCount
+    expr: 'env:=test service:=nginx | stats count(*) as requests'
+```
+
+It is possible to group the calculated metrics by arbitrary log fields, by using [`stats by (...)` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-by-fields).
+
+Use [`math` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#math-pipe)
+for performing additional calculations over the metrics calculated with [`stats` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#stats-pipe).
+
+Use [`fields` pipe](https://docs.victoriametrics.com/victorialogs/logsql/#fields-pipe) for leaving only the needed metrics.
+
+The following example of recording rule uses `stats by (...)`, `math` and `fields` pipes:
+
+```yaml
+groups:
+- name: RequestCount
+  type: vlogs
+  interval: 5m
+  rules:
+  - record: prodErrorsShareByService
+    expr: 'env:=prod | stats by (service) count() as logs_total, count() if (error) errors | math (errors / total) as errors_share | fields service, errors_share'
 ```
 
 ## Time filter
@@ -146,14 +187,14 @@ For instance, the rule below will be evaluated every 5 minutes and will return t
 
 ```yaml
 groups:
-    - name: Requests
-      type: vlogs
-      interval: 5m
-      rules:
-        - alert: TooManyFailedRequest
-          expr: '* | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip) count() if (code:~4.*) as failed, count() as total| math failed / total as failed_percentage| filter failed_percentage :> 0.01 | fields ip,failed_percentage'
-          annotations: 
-            description: "Connection from address {{$labels.ip}} has {{$value}}% failed requests in the last 5 minutes"
+- name: Requests
+  type: vlogs
+  interval: 5m
+  rules:
+  - alert: TooManyFailedRequestByIP
+    expr: '* | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip) count() if (code:~"4.*") as failed, count() as total | math (failed / total) * 100 as failed_percentage | filter failed_percentage:>10 | fields ip, failed_percentage'
+    annotations:
+      description: "Connection from address {{$labels.ip}} has {{$value}}% failed requests in the last 5 minutes"
 ```
 
 Users can specify a custom time filter if needed. For example, the rule below will be evaluated every 5 minutes
@@ -161,14 +202,14 @@ but will calculate the result over the logs from the last 10 minutes.
 
 ```yaml
 groups:
-    - name: Requests
-      type: vlogs
-      interval: 5m
-      rules:
-        - alert: TooManyFailedRequest
-          expr: '_time: 10m | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip) count() if (code:~4.*) as failed, count() as total| math failed / total as failed_percentage| filter failed_percentage :> 0.01 | fields ip,failed_percentage'
-          annotations:
-           description: "Connection from address {{$labels.ip}} has {{$value}}% failed requests in the last 10 minutes"
+- name: Requests
+  type: vlogs
+  interval: 5m
+  rules:
+  - alert: TooManyFailedRequestByIP
+    expr: '_time:10m | extract "ip=<ip> " | extract "status_code=<code>;" | stats by (ip) count() if (code:~"4.*") as failed, count() as total | math (failed / total) * 100 as failed_percentage | filter failed_percentage:>10 | fields ip, failed_percentage'
+    annotations:
+    description: "Connection from address {{$labels.ip}} has {{$value}}% failed requests in the last 10 minutes"
 ```
 
 _Please note, vmalert doesn't support [backfilling](https://docs.victoriametrics.com/victorialogs/vmalert/#rules-backfilling) for rules with a customized time filter yet (might be added in the future)._
