@@ -505,16 +505,16 @@ See also [Security and Load balancing docs](https://docs.victoriametrics.com/vic
 
 ## Security
 
-See [Security docs](https://docs.victoriametrics.com/victorialogs/security/)
+See [Security on Untrusted Networks](https://docs.victoriametrics.com/victorialogs/security-and-lb/#security-on-untrusted-networks)
 for detailed information about VictoriaLogs security features and recommendations.
 
 ### mTLS
 
-See [mTLS docs](https://docs.victoriametrics.com/victorialogs/security/#mtls) for details.
+See [mTLS docs](https://docs.victoriametrics.com/victorialogs/security-and-lb/#mtls) for details.
 
 ### Automatic issuing of TLS certificates
 
-See [Automatic TLS certificates docs](https://docs.victoriametrics.com/victorialogs/security/#automatic-issuing-of-tls-certificates)
+See [Automatic TLS certificates docs](https://docs.victoriametrics.com/victorialogs/security-and-lb/#automatic-issuing-of-tls-certificates)
 for details.
 
 ## Benchmarks

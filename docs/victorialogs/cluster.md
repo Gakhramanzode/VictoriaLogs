@@ -174,7 +174,7 @@ A single-node VictoriaLogs instance can be used as `vlstorage` node in VictoriaL
 - It accepts data ingestion requests from `vlinsert` via `/internal/insert` HTTP endpoint at the TCP port specified via `-httpListenAddr` command-line flag.
 - It accepts queries from `vlselect` via `/internal/select/*` HTTP endpoints at the TCP port specified via `-httpListenAddr` command-line flag.
 
-See also [security docs](https://docs.victoriametrics.com/victorialogs/security/).
+See also [Security on Untrusted Networks](https://docs.victoriametrics.com/victorialogs/security-and-lb/#security-on-untrusted-networks).
 
 ## Multi-level cluster setup
 
@@ -184,7 +184,7 @@ See also [security docs](https://docs.victoriametrics.com/victorialogs/security/
 - `vlselect` can send queries to other `vlselect` nodes if they are specified via `-storageNode` command-line flag.
   This allows building multi-level cluster schemes when top-level `vlselect` queries multiple lower-level clusters of VictoriaLogs.
 
-See [security docs](https://docs.victoriametrics.com/victorialogs/security/) on how to protect communications between multiple levels of `vlinsert` and `vlselect` nodes.
+See [Security on Untrusted Networks](https://docs.victoriametrics.com/victorialogs/security-and-lb/#security-on-untrusted-networks) on how to protect communications between multiple levels of `vlinsert` and `vlselect` nodes.
 
 ## Security
 
@@ -201,7 +201,7 @@ The `-insert.disable` and `-select.disable` flags are broader than `-internalins
 
 By default, `vlinsert` and `vlselect` communicate with `vlstorage` via unencrypted HTTP. This is OK if all these components are located
 in the same protected internal network. If they communicate over untrusted networks, then TLS and request authorization must be configured.
-See the [Security docs](https://docs.victoriametrics.com/victorialogs/security/#tlsssl) for detailed TLS and Basic Auth setup.
+See the [Security on Untrusted Networks - TLS/SSL](https://docs.victoriametrics.com/victorialogs/security-and-lb/#tlsssl) for detailed TLS and Basic Auth setup.
 
 By default, all the components (vlinsert, vlselect, vlstorage) support all the HTTP endpoints including `/insert/*` and `/select/*`.
 It is recommended to disable select endpoints on dedicated `vlinsert` nodes and insert endpoints on dedicated `vlselect` nodes:
@@ -222,7 +222,7 @@ See also [mTLS](https://docs.victoriametrics.com/victorialogs/cluster/#mtls).
 ### mTLS
 
 For mTLS authentication setup in enterprise deployments,
-see the [Security docs](https://docs.victoriametrics.com/victorialogs/security/#mtls).
+see the [mTLS](https://docs.victoriametrics.com/victorialogs/security-and-lb/#mtls).
 
 ## Rebalancing
 
@@ -334,7 +334,7 @@ curl http://localhost:9491/select/logsql/query -d 'query=* | count()'
 
 We recommend reading [key concepts](https://docs.victoriametrics.com/victorialogs/keyconcepts/) before you start working with VictoriaLogs.
 
-See also [security docs](https://docs.victoriametrics.com/victorialogs/security/).
+See also [Security on Untrusted Networks](https://docs.victoriametrics.com/victorialogs/security-and-lb/#security-on-untrusted-networks).
 
 ## Capacity planning
 
